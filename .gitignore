@@ -1,0 +1,12 @@
+build/
+*.o
+*.so
+*.a
+semantics-av
+*.log
+config/semantics-av.conf
+.vscode/
+.idea/
+*.swp
+*.tmp
+_deps/

@@ -1,0 +1,41 @@
+message(STATUS "Uninstalling SemanticsAV...")
+
+execute_process(COMMAND systemctl stop semantics-av OUTPUT_QUIET ERROR_QUIET)
+execute_process(COMMAND systemctl --user stop semantics-av OUTPUT_QUIET ERROR_QUIET)
+execute_process(COMMAND systemctl disable semantics-av OUTPUT_QUIET ERROR_QUIET)
+execute_process(COMMAND systemctl --user disable semantics-av OUTPUT_QUIET ERROR_QUIET)
+execute_process(COMMAND systemctl daemon-reload OUTPUT_QUIET ERROR_QUIET)
+execute_process(COMMAND systemctl --user daemon-reload OUTPUT_QUIET ERROR_QUIET)
+
+if(EXISTS "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
+    file(READ "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt" files)
+    string(REGEX REPLACE "\n" ";" files "${files}")
+    foreach(file ${files})
+        if(EXISTS "$ENV{DESTDIR}${file}")
+            message(STATUS "Removing ${file}")
+            file(REMOVE "$ENV{DESTDIR}${file}")
+        endif()
+    endforeach()
+endif()
+
+set(ADDITIONAL_FILES
+    "/etc/systemd/system/semantics-av.service"
+)
+
+foreach(file ${ADDITIONAL_FILES})
+    if(EXISTS ${file})
+        message(STATUS "Removing ${file}")
+        file(REMOVE ${file})
+    endif()
+endforeach()
+
+message(STATUS "")
+message(STATUS "Files removed. System directories preserved for safety.")
+message(STATUS "")
+message(STATUS "To completely remove all data, manually delete:")
+message(STATUS "  - System: /var/lib/semantics-av, /var/log/semantics-av, /etc/semantics-av")
+message(STATUS "  - User: ~/.config/semantics-av, ~/.local/share/semantics-av")
+message(STATUS "")
+message(STATUS "To remove system user: sudo userdel semantics-av-daemon")
+message(STATUS "")
+message(STATUS "Uninstallation completed!")

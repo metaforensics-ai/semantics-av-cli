@@ -1,0 +1,13 @@
+@PACKAGE_INIT@
+
+set(SEMANTICSAV_VERSION "@SEMANTICS_AV_VERSION@")
+set(SEMANTICSAV_INCLUDE_DIR "@SEMANTICS_AV_INCLUDE_DIR@")
+set(SEMANTICSAV_LIBRARY_DIR "@SEMANTICS_AV_LIBRARY_DIR@")
+
+include("${CMAKE_CURRENT_LIST_DIR}/SemanticsAVTargets.cmake")
+
+check_required_components(SemanticsAV)
+
+if(SemanticsAV_FOUND AND NOT TARGET SemanticsAV::Core)
+    message(FATAL_ERROR "SemanticsAV found but target SemanticsAV::Core not available")
+endif()
