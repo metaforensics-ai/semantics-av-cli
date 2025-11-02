@@ -237,14 +237,18 @@ download_source() {
     
     local max_retries=3
     local retry=0
+    local source_dir="$TEMP_DIR/source"
     
     while [ $retry -lt $max_retries ]; do
-        if git clone --depth 1 --branch "$VERSION" "$REPO_URL" "$TEMP_DIR/source" 2>&1 | grep -v "Cloning into"; then
+        [ -d "$source_dir" ] && rm -rf "$source_dir"
+        
+        if git clone --depth 1 --branch "$VERSION" "$REPO_URL" "$source_dir" >/dev/null 2>&1; then
             print_success "Source code downloaded"
             return 0
         fi
         
         retry=$((retry + 1))
+        
         if [ $retry -lt $max_retries ]; then
             print_warning "Download failed, retrying ($retry/$max_retries)..."
             sleep 2
