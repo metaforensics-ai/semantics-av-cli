@@ -1,0 +1,23 @@
+[global]
+base_path = "~/.local/share/semantics-av"
+models_path = "~/.local/share/semantics-av/models"
+log_file = "~/.local/state/semantics-av/daemon.log"
+log_level = "INFO"
+api_base_url = "https://api.semanticsav.ai"
+cdn_url = "https://workers.semanticsav.ai"
+network_timeout = 120
+auto_update = true
+update_interval_minutes = 60
+max_scan_size_mb = 650
+scan_timeout_seconds = 30
+max_recursion_depth = 50
+
+[daemon]
+socket_path = "~/.local/state/semantics-av/semantics-av.sock"
+http_port = 9216
+http_host = "127.0.0.1"
+user = ""
+group = ""
+max_connections = 50
+max_queue = 100
+read_timeout = 120
