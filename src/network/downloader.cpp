@@ -57,6 +57,21 @@ public:
                                          host_, port_, is_https_);
     }
     
+    ~Impl() {
+        try {
+            if (https_client_) {
+                https_client_->stop();
+                https_client_.release();
+            }
+            
+            if (http_client_) {
+                http_client_->stop();
+                http_client_.release();
+            }
+        } catch (...) {
+        }
+    }
+    
     void updateConfig(int timeout_seconds) {
         std::lock_guard<std::mutex> lock(mutex_);
         
@@ -180,14 +195,14 @@ public:
     }
 
 private:
+    std::mutex mutex_;
+    DownloadProgressCallback progress_callback_;
+    int timeout_;
     std::string host_;
     int port_;
-    int timeout_;
     bool is_https_;
     std::unique_ptr<httplib::Client> http_client_;
     std::unique_ptr<httplib::SSLClient> https_client_;
-    DownloadProgressCallback progress_callback_;
-    std::mutex mutex_;
     
     ModelDownloadResult processDownloadResponse(const httplib::Result& response,
                                                   const std::string& model_type,
