@@ -1,0 +1,37 @@
+[Unit]
+Description=SemanticsAV Daemon
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=semantics-av-daemon
+Group=semantics-av-daemon
+ExecStartPre=/usr/local/bin/semantics-av daemon run --check-config
+ExecStart=/usr/local/bin/semantics-av daemon run
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStop=/bin/kill -TERM $MAINPID
+PIDFile=/var/run/semantics-av/semantics-av.pid
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=10
+
+RuntimeDirectory=semantics-av
+RuntimeDirectoryMode=0755
+StateDirectory=semantics-av
+StateDirectoryMode=0755
+LogsDirectory=semantics-av
+LogsDirectoryMode=0755
+ConfigurationDirectory=semantics-av
+ConfigurationDirectoryMode=0755
+
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/semantics-av /var/log/semantics-av /var/run/semantics-av
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

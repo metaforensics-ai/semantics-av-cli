@@ -1,0 +1,19 @@
+[Unit]
+Description=SemanticsAV User Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStartPre=%h/.local/bin/semantics-av daemon run --check-config
+ExecStart=%h/.local/bin/semantics-av daemon run
+PIDFile=%t/semantics-av/semantics-av.pid
+Restart=on-failure
+RestartSec=10
+
+PrivateTmp=true
+ProtectHome=false
+ProtectSystem=strict
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
