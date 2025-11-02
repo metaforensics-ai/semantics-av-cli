@@ -1,0 +1,124 @@
+[THIRD PARTY SOFTWARE NOTICES AND INFORMATION]
+
+This software incorporates components from the projects listed below.
+
+================================================================================================
+SEMANTICSAV CLI DEPENDENCIES
+================================================================================================
+
+The SemanticsAV CLI is the official open-source (MIT-licensed) interface to the Platform.
+
+1. CLI11 - 2.5.0
+   Copyright: Copyright (c) 2017-2024 University of Cincinnati and CLI11 contributors
+   License: BSD 3-Clause License
+   Source: https://github.com/CLIUtils/CLI11
+   Description: Command line parser for C++11
+   License File: licenses/cli11/LICENSE
+
+2. spdlog - 1.15.3
+   Copyright: Copyright (c) 2016-2024 Gabi Melman
+   License: MIT License
+   Source: https://github.com/gabime/spdlog
+   Description: Fast C++ logging library
+   License File: licenses/spdlog/LICENSE
+
+3. cpp-httplib - 0.26.0
+   Copyright: Copyright (c) 2024 Yuji Hirose. All rights reserved.
+   License: MIT License
+   Source: https://github.com/yhirose/cpp-httplib
+   Description: C++ header-only HTTP/HTTPS server and client library
+   License File: licenses/cpp-httplib/LICENSE
+
+4. JSON for Modern C++ (nlohmann/json) - 3.12.0
+   Copyright: Copyright (c) 2013-2025 Niels Lohmann
+   License: MIT License
+   Source: https://github.com/nlohmann/json
+   Description: JSON parser and serializer for C++
+   License File: licenses/nlohmann-json/LICENSE.MIT
+
+5. toml11 - 4.4.0
+   Copyright: Copyright (c) 2017-2024 Toru Niina
+   License: MIT License
+   Source: https://github.com/ToruNiina/toml11
+   Description: TOML parser and serializer for C++11
+   License File: licenses/toml11/LICENSE
+
+6. oneTBB (Threading Building Blocks) - 2022.2.0
+   Copyright: Copyright (c) 2005-2024 Intel Corporation
+   License: Apache License 2.0
+   Source: https://github.com/oneapi-src/oneTBB
+   Description: Flexible C++ library for parallel programming
+   License File: licenses/tbb/LICENSE.txt
+
+7. OpenSSL - 3.x
+   Copyright: Copyright (c) 1998-2025 The OpenSSL Project. All rights reserved.
+   License: Apache License 2.0
+   Source: https://github.com/openssl/openssl
+   Description: Cryptography and SSL/TLS library
+   License File: licenses/openssl/LICENSE.txt
+
+8. jemalloc - 5.3.0
+   Copyright: Copyright (c) 2002-2024 Jason Evans and contributors
+   License: BSD 2-Clause License
+   Source: https://github.com/jemalloc/jemalloc
+   Description: General purpose malloc implementation
+   License File: licenses/jemalloc/COPYING
+
+9. inja - 3.4.0
+   Copyright: Copyright (c) 2018-2024 Lars Berscheid and Pantor Engineering contributors
+   License: MIT License
+   Source: https://github.com/pantor/inja
+   Description: Template engine for modern C++
+   License File: licenses/inja/LICENSE
+
+10. MD4C - 0.5.2
+    Copyright: Copyright (c) 2016-2024 Martin Mitáš
+    License: MIT License
+    Source: https://github.com/mity/md4c
+    Description: Markdown parser library
+    License File: licenses/md4c/LICENSE.md
+
+================================================================================================
+SEMANTICSAV SDK DEPENDENCIES
+================================================================================================
+
+The SemanticsAV SDK is the proprietary (EULA-licensed) AI engine that provides malware
+detection capabilities.
+
+1. OpenSSL - 3.5.1
+   Copyright: Copyright (c) 1998-2025 The OpenSSL Project. All rights reserved.
+   License: Apache License 2.0
+   Source: https://github.com/openssl/openssl
+   Description: Cryptography and SSL/TLS library
+   License File: licenses/openssl/LICENSE.txt
+
+2. LIEF (Library to Instrument Executable Formats) - 0.16.7
+   Copyright: Copyright 2017 Romain Thomas, Copyright 2017 Quarkslab
+   License: Apache License 2.0
+   Source: https://github.com/lief-project/LIEF
+   Description: Library to parse, modify and abstract ELF, PE and MachO formats
+   License File: licenses/lief/LICENSE
+
+3. Zstandard (zstd) - 1.5.7
+   Copyright: Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+   License: BSD License (dual-licensed as BSD OR GPLv2)
+   Source: https://github.com/facebook/zstd
+   Description: Fast real-time compression algorithm
+   License File: licenses/zstd/LICENSE
+
+4. JSON for Modern C++ (nlohmann/json) - 3.12.0
+   Copyright: Copyright (c) 2013-2025 Niels Lohmann
+   License: MIT License
+   Source: https://github.com/nlohmann/json
+   Description: JSON parser and serializer for C++
+   License File: licenses/nlohmann-json/LICENSE.MIT
+
+5. ONNX Runtime - 1.23.0
+   Copyright: Copyright (c) Microsoft Corporation
+   License: MIT License
+   Source: https://github.com/microsoft/onnxruntime
+   Description: Cross-platform ML inferencing and training accelerator
+   License File: licenses/onnxruntime/LICENSE
+   Third-Party Notices: licenses/onnxruntime/ThirdPartyNotices.txt
+
+================================================================================================
