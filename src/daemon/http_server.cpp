@@ -82,6 +82,7 @@ void HttpApiServer::stop() {
     
     if (server_) {
         server_->stop();
+        server_.release();
     }
     
     if (server_thread_.joinable()) {

@@ -105,7 +105,15 @@ public:
             ::close(socket_fd_);
             socket_fd_ = -1;
         }
-        http_client_.reset();
+        
+        if (http_client_) {
+            try {
+                http_client_->stop();
+                http_client_.release();
+            } catch (...) {
+            }
+        }
+        
         is_unix_socket_ = false;
         is_http_ = false;
     }
@@ -1160,5 +1168,4 @@ std::optional<std::pair<MessageType, std::vector<uint8_t>>> DaemonClient::receiv
     return pimpl_->receiveAnyResponse();
 }
 
-}
-}
+}}

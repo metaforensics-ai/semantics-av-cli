@@ -55,6 +55,21 @@ public:
                                          host_, port_, is_https_);
     }
     
+    ~Impl() {
+        try {
+            if (https_client_) {
+                https_client_->stop();
+                https_client_.release();
+            }
+            
+            if (http_client_) {
+                http_client_->stop();
+                http_client_.release();
+            }
+        } catch (...) {
+        }
+    }
+    
     void updateConfig(const std::string& api_key, int timeout_seconds) {
         std::lock_guard<std::mutex> lock(mutex_);
         
@@ -157,6 +172,7 @@ public:
     }
 
 private:
+    std::mutex mutex_;
     std::string api_key_;
     std::string host_;
     int port_;
@@ -164,7 +180,6 @@ private:
     bool is_https_;
     std::unique_ptr<httplib::Client> http_client_;
     std::unique_ptr<httplib::SSLClient> https_client_;
-    std::mutex mutex_;
     
     LabelStatistics parseLabelStatistics(const nlohmann::json& label_json) {
         LabelStatistics stats;
