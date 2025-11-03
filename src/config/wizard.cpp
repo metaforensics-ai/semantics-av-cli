@@ -2,6 +2,7 @@
 #include "semantics_av/common/constants.hpp"
 #include "semantics_av/common/paths.hpp"
 #include "semantics_av/common/logger.hpp"
+#include "semantics_av/common/security.hpp"
 #include "semantics_av/config/validator.hpp"
 #include "semantics_av/daemon/client.hpp"
 #include "semantics_av/daemon/server.hpp"
@@ -191,6 +192,48 @@ int ConfigWizard::run(bool use_defaults) {
     
     common::Logger::instance().info("[Config] Wizard started | mode={} | defaults={}", 
                                     install_mode_str_, use_defaults);
+    
+    bool is_system_mode = path_manager.isSystemMode();
+    bool is_root = (getuid() == 0);
+    
+    if (is_system_mode && !is_root) {
+        std::cerr << "\n\033[31mPermission denied\033[0m\n\n";
+        std::cerr << "System-wide configuration requires root privileges.\n\n";
+        std::cerr << "Run: \033[32msudo semantics-av config init";
+        if (use_defaults) std::cerr << " --defaults";
+        std::cerr << "\033[0m\n\n";
+        return 1;
+    }
+    
+    if (!is_system_mode && is_root) {
+        std::cerr << "\n\033[33mWarning: Running as root in user mode\033[0m\n\n";
+        std::cerr << "This will create configuration files owned by root.\n";
+        std::cerr << "You may encounter permission issues later.\n\n";
+        std::cerr << "\033[1mRecommended:\033[0m Run without sudo:\n";
+        std::cerr << "  semantics-av config init";
+        if (use_defaults) std::cerr << " --defaults";
+        std::cerr << "\n\n";
+        
+        if (isatty(STDIN_FILENO) && isatty(STDOUT_FILENO)) {
+            std::cout << "Continue anyway? [y/N]: ";
+            std::string response;
+            std::getline(std::cin, response);
+            if (response.empty() || (response[0] != 'y' && response[0] != 'Y')) {
+                std::cout << "Cancelled.\n";
+                return 1;
+            }
+        } else {
+            std::cerr << "Non-interactive mode - aborting.\n";
+            return 1;
+        }
+    }
+    
+    std::string config_dir = std::filesystem::path(config_path).parent_path();
+    if (!common::PrivilegeManager::canSafelyWriteConfig(config_dir)) {
+        std::cerr << "\n\033[31mCannot write to configuration directory\033[0m\n";
+        std::cerr << "Directory: " << config_dir << "\n\n";
+        return 1;
+    }
     
     if (!validateRequiredDirectories()) {
         return 1;

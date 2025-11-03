@@ -48,6 +48,32 @@ InstallMode PathManager::detectMode() {
     return detected;
 }
 
+std::vector<std::string> PathManager::getConfigSearchPaths() const {
+    std::vector<std::string> paths;
+    
+    if (const char* env = std::getenv("SEMANTICS_AV_CONFIG")) {
+        paths.push_back(env);
+    }
+    
+    std::string user_config = getUserConfigFile();
+    if (!user_config.empty()) {
+        paths.push_back(user_config);
+    }
+    
+    switch (mode_) {
+        case InstallMode::SYSTEM:
+            paths.push_back("/etc/semantics-av/semantics-av.conf");
+            break;
+        case InstallMode::USER:
+            break;
+        case InstallMode::PORTABLE:
+            paths.push_back("./config/semantics-av.conf");
+            break;
+    }
+    
+    return paths;
+}
+
 std::string PathManager::getConfigDir() const {
     switch (mode_) {
         case InstallMode::SYSTEM:

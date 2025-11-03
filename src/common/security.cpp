@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
+#include <sys/stat.h>
 #include <cstring>
 #include <cerrno>
 #include <filesystem>
@@ -122,6 +123,38 @@ bool PrivilegeManager::setupChroot(const std::string& root_path) {
 bool PrivilegeManager::setupSeccompFilter() {
     Logger::instance().debug("[Security] Seccomp not available in this build");
     return true;
+}
+
+bool PrivilegeManager::canSafelyWriteConfig(const std::string& dir) {
+    if (access(dir.c_str(), W_OK) != 0) {
+        return false;
+    }
+    
+    struct stat st;
+    if (stat(dir.c_str(), &st) != 0) {
+        return false;
+    }
+    
+    uid_t current_uid = getuid();
+    
+    if (st.st_uid == current_uid) {
+        return true;
+    }
+    
+    if (current_uid == 0) {
+        return true;
+    }
+    
+    return false;
+}
+
+bool PrivilegeManager::checkFileOwnership(const std::string& path, uid_t expected_uid) {
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        return false;
+    }
+    
+    return st.st_uid == expected_uid;
 }
 
 bool PrivilegeManager::validateUsername(const std::string& username) const {

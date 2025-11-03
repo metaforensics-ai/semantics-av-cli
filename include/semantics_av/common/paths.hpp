@@ -2,6 +2,7 @@
 
 #include <string>
 #include <optional>
+#include <vector>
 
 namespace semantics_av {
 namespace common {
@@ -29,6 +30,8 @@ public:
     std::string getUserCredentialsFile() const;
     std::string getSystemSecretsFile() const;
     std::string getUserConfigFile() const;
+    
+    std::vector<std::string> getConfigSearchPaths() const;
     
     bool isSystemMode() const { return mode_ == InstallMode::SYSTEM; }
     bool isUserMode() const { return mode_ == InstallMode::USER; }

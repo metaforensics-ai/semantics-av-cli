@@ -22,6 +22,9 @@ public:
     
     bool setupChroot(const std::string& root_path);
     bool setupSeccompFilter();
+    
+    static bool canSafelyWriteConfig(const std::string& dir);
+    static bool checkFileOwnership(const std::string& path, uid_t expected_uid);
 
 private:
     SecurityLevel current_level_;

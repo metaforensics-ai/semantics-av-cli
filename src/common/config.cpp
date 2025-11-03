@@ -19,6 +19,69 @@ Config& Config::instance() {
     return instance;
 }
 
+std::optional<std::string> Config::findBestConfig() const {
+    auto paths = PathManager::instance().getConfigSearchPaths();
+    
+    for (const auto& path : paths) {
+        if (std::filesystem::exists(path) && access(path.c_str(), R_OK) == 0) {
+            return path;
+        }
+    }
+    
+    return std::nullopt;
+}
+
+bool Config::checkHealth() const {
+    if (current_config_path_.empty()) {
+        return true;
+    }
+    
+    struct stat st;
+    if (stat(current_config_path_.c_str(), &st) != 0) {
+        return false;
+    }
+    
+    auto& path_manager = PathManager::instance();
+    
+    if (path_manager.isUserMode()) {
+        uid_t current_uid = getuid();
+        if (st.st_uid != current_uid && st.st_uid == 0) {
+            return false;
+        }
+    }
+    
+    if (path_manager.isSystemMode()) {
+        if (st.st_uid != 0) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+void Config::suggestFix() const {
+    if (current_config_path_.empty()) {
+        return;
+    }
+    
+    struct stat st;
+    if (stat(current_config_path_.c_str(), &st) != 0) {
+        return;
+    }
+    
+    auto& path_manager = PathManager::instance();
+    
+    if (path_manager.isUserMode() && st.st_uid == 0) {
+        std::cerr << "\n\033[33mWarning: Configuration file is owned by root\033[0m\n";
+        std::cerr << "File: " << current_config_path_ << "\n\n";
+        std::cerr << "This may cause permission issues. To fix:\n";
+        std::cerr << "  sudo chown $USER:$USER " << current_config_path_ << "\n";
+        
+        std::string parent = std::filesystem::path(current_config_path_).parent_path();
+        std::cerr << "  sudo chown -R $USER:$USER " << parent << "\n\n";
+    }
+}
+
 bool Config::load(const std::string& config_file) {
     try {
         applyDefaults();
@@ -43,7 +106,12 @@ bool Config::load(const std::string& config_file) {
         
         std::string effective_config_file = config_file;
         if (effective_config_file.empty()) {
-            effective_config_file = path_manager.getConfigFile();
+            auto best = findBestConfig();
+            if (best) {
+                effective_config_file = *best;
+            } else {
+                effective_config_file = path_manager.getConfigFile();
+            }
         }
         
         current_config_path_ = effective_config_file;
@@ -75,6 +143,10 @@ bool Config::load(const std::string& config_file) {
         
         Logger::instance().info("[Config] Loaded | has_api_key={} | sources_loaded={}", 
                                !global_.api_key.empty(), has_any_config);
+        
+        if (!checkHealth()) {
+            suggestFix();
+        }
         
         return true;
     } catch (const std::exception& e) {

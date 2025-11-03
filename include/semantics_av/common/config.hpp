@@ -89,6 +89,10 @@ public:
     
     std::string getConfigPath() const;
     std::string getPidFilePath() const;
+    
+    std::optional<std::string> findBestConfig() const;
+    bool checkHealth() const;
+    void suggestFix() const;
 
 private:
     Config() = default;

@@ -8,6 +8,7 @@
 #include "semantics_av/common/constants.hpp"
 #include "semantics_av/common/logger.hpp"
 #include "semantics_av/common/paths.hpp"
+#include "semantics_av/common/security.hpp"
 #include "semantics_av/config/wizard.hpp"
 #include "cli/main_command.hpp"
 #include "cli/daemon_command.hpp"
@@ -28,14 +29,6 @@ bool requires_configuration(int argc, char** argv) {
     return argc > 1;
 }
 
-void print_config_missing_message(const std::string& config_path) {
-    std::cerr << "\nConfiguration file not found.\n\n";
-    std::cerr << "Expected location: " << config_path << "\n\n";
-    std::cerr << "To create configuration:\n";
-    std::cerr << "  Interactive:  semantics-av config init\n";
-    std::cerr << "  Automated:    semantics-av config init --defaults\n\n";
-}
-
 bool is_interactive_terminal() {
     return isatty(STDIN_FILENO) && isatty(STDOUT_FILENO);
 }
@@ -51,6 +44,58 @@ bool is_daemon_run_command(int argc, char** argv) {
     return false;
 }
 
+void print_config_missing_help(bool is_system_mode, bool is_root) {
+    auto& path_manager = semantics_av::common::PathManager::instance();
+    std::string config_path = path_manager.getConfigFile();
+    
+    std::cerr << "\nConfiguration not found.\n";
+    std::cerr << "Expected: " << config_path << "\n\n";
+    
+    if (is_system_mode && !is_root) {
+        std::cerr << "\033[1mSystem configuration requires root privileges.\033[0m\n\n";
+        std::cerr << "Run:\n";
+        std::cerr << "  \033[32msudo semantics-av config init\033[0m\n";
+        std::cerr << "  \033[32msudo semantics-av config init --defaults\033[0m\n\n";
+    } else if (!is_system_mode && is_root) {
+        std::cerr << "\033[33mWarning: Running as root in user mode.\033[0m\n\n";
+        std::cerr << "For user configuration, run without sudo:\n";
+        std::cerr << "  \033[32msemantics-av config init\033[0m\n";
+        std::cerr << "  \033[32msemantics-av config init --defaults\033[0m\n\n";
+    } else {
+        std::cerr << "Create configuration:\n";
+        std::cerr << "  \033[32msemantics-av config init\033[0m\n";
+        std::cerr << "  \033[32msemantics-av config init --defaults\033[0m\n\n";
+    }
+    
+    std::cerr << "Get API key: " << semantics_av::constants::network::CONSOLE_URL << "\n\n";
+}
+
+bool can_safely_run_wizard(bool is_system_mode, bool is_root) {
+    if (is_system_mode && !is_root) {
+        return false;
+    }
+    
+    if (!is_system_mode && is_root) {
+        return false;
+    }
+    
+    return true;
+}
+
+bool confirm_risky_wizard() {
+    if (!is_interactive_terminal()) {
+        return false;
+    }
+    
+    std::cerr << "\nThis will create configuration files owned by root.\n";
+    std::cerr << "Continue? [y/N]: ";
+    
+    std::string response;
+    std::getline(std::cin, response);
+    
+    return !response.empty() && (response[0] == 'y' || response[0] == 'Y');
+}
+
 int main(int argc, char** argv) {
     try {
         CLI::App app{semantics_av::constants::system::APPLICATION_NAME, "semantics-av"};
@@ -61,10 +106,17 @@ int main(int argc, char** argv) {
         auto& config = semantics_av::common::Config::instance();
         
         bool needs_config = requires_configuration(argc, argv);
-        bool config_exists = config.exists();
+        bool is_system_mode = path_manager.isSystemMode();
+        bool is_root = (getuid() == 0);
         
-        if (needs_config && !config_exists) {
-            print_config_missing_message(path_manager.getConfigFile());
+        auto config_path = config.findBestConfig();
+        
+        if (needs_config && !config_path) {
+            print_config_missing_help(is_system_mode, is_root);
+            
+            if (!can_safely_run_wizard(is_system_mode, is_root)) {
+                return 1;
+            }
             
             if (is_interactive_terminal()) {
                 std::cout << "Run configuration wizard now? [Y/n]: ";
@@ -72,6 +124,15 @@ int main(int argc, char** argv) {
                 std::getline(std::cin, response);
                 
                 if (response.empty() || response[0] == 'Y' || response[0] == 'y') {
+                    std::string config_dir = std::filesystem::path(
+                        path_manager.getConfigFile()).parent_path();
+                    
+                    if (!semantics_av::common::PrivilegeManager::canSafelyWriteConfig(config_dir)) {
+                        std::cerr << "\n\033[31mCannot write to configuration directory\033[0m\n";
+                        std::cerr << "Directory: " << config_dir << "\n\n";
+                        return 1;
+                    }
+                    
                     semantics_av::config::ConfigWizard wizard;
                     return wizard.run(false);
                 }
@@ -80,7 +141,15 @@ int main(int argc, char** argv) {
             return 1;
         }
         
-        config.load();
+        if (config_path) {
+            config.load(*config_path);
+            
+            if (!config.checkHealth()) {
+                config.suggestFix();
+            }
+        } else {
+            config.load();
+        }
         
         bool is_daemon_run = is_daemon_run_command(argc, argv);
         
