@@ -315,11 +315,6 @@ int UpdateCommand::executeDirect() {
             
             auto duration_ms = summary.total_time.count();
             std::cout << "Total time: " << duration_ms << "ms\n";
-            
-            if (summary.updated_models > 0 && !daemon::DaemonClient::isDaemonRunning()) {
-                std::cout << "\nNote: Models updated on disk. Restart daemon to use new models:\n";
-                std::cout << "  sudo systemctl restart semantics-av\n";
-            }
         }
         
         return (summary.failed_models > 0) ? 1 : 0;

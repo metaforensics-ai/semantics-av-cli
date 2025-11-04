@@ -240,53 +240,17 @@ int ConfigWizard::run(bool use_defaults) {
     }
     
     if (use_defaults) {
-        std::cout << "\n\033[1m" << constants::system::APPLICATION_NAME << " Quick Setup\033[0m\n";
+        std::cout << "\n\033[1m" << constants::system::APPLICATION_NAME << " Quick Setup (Non-Interactive)\033[0m\n";
         std::cout << "Installation Mode: " << install_mode_str_ << "\n";
         std::cout << "Config Location: " << config_path << "\n\n";
-        std::cout << "Using default settings for optimal performance.\n\n";
-        
-        std::cout << "\033[1mAPI Key (Optional)\033[0m\n";
-        std::cout << "The 'analyze' command requires an API key for cloud intelligence.\n";
-        std::cout << "Configure API key now? [y/N]: ";
-        
-        std::string response;
-        std::getline(std::cin, response);
-        
-        if (!response.empty() && (response[0] == 'y' || response[0] == 'Y')) {
-            std::cout << "\nAPI key: ";
-            std::string api_key;
-            std::getline(std::cin, api_key);
-            
-            if (!api_key.empty()) {
-                if (ConfigValidator::validateApiKey(api_key)) {
-                    config_.api_key = api_key;
-                    
-                    if (path_manager.isUserMode()) {
-                        if (!saveUserCredentials(api_key)) {
-                            std::cerr << "\n\033[33mWarning: Failed to save credentials\033[0m\n";
-                        }
-                    } else {
-                        if (!saveSystemSecrets(api_key)) {
-                            std::cerr << "\n\033[33mWarning: Failed to save secrets\033[0m\n";
-                        }
-                    }
-                } else {
-                    std::cerr << "\n\033[33mWarning: Invalid API key format\033[0m\n";
-                    std::cerr << "The key was not saved. You can set it later.\n";
-                }
-            }
-        }
-        
-        if (config_.api_key.empty()) {
-            std::cout << "\n\033[36mNote:\033[0m Without an API key, the 'analyze' command will not be available.\n";
-            std::cout << "You can configure it later:\n";
-            std::cout << "  semantics-av config set api_key \"YOUR_KEY\"\n";
-            std::cout << "\nObtain a key from: " << constants::network::CONSOLE_URL << "\n";
-        }
+        std::cout << "Using default settings for optimal performance.\n";
+        std::cout << "API key can be configured later:\n";
+        std::cout << "  semantics-av config set api_key \"YOUR_KEY\"\n";
+        std::cout << "\nObtain a key from: " << constants::network::CONSOLE_URL << "\n\n";
         
         common::Config::instance().global() = config_;
         if (common::Config::instance().save()) {
-            std::cout << "\n\033[32m✓ Configuration created successfully\033[0m\n";
+            std::cout << "\033[32m✓ Configuration created successfully\033[0m\n";
             std::cout << "Location: " << config_path << "\n";
             
             triggerDaemonReloadIfRunning();
