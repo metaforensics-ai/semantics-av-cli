@@ -56,6 +56,74 @@ print_error() {
     print_color "$color_red" "      ✗ $1"
 }
 
+show_help() {
+    cat << EOF
+SemanticsAV Installation Script
+
+USAGE:
+    curl -sSL https://raw.githubusercontent.com/.../install.sh | bash [OPTIONS]
+
+OPTIONS:
+    --user      Force user installation to ~/.local (no sudo required)
+    --system    Force system-wide installation to /usr/local (requires sudo)
+    --help      Show this help message
+
+ENVIRONMENT VARIABLES:
+    INSTALL_MODE    Set to 'user' or 'system' (alternative to flags)
+    VERSION         Git branch/tag to install (default: main)
+    BUILD_JOBS      Number of parallel build jobs (default: auto)
+
+EXAMPLES:
+    # Automatic installation (detects best method)
+    curl -sSL https://raw.githubusercontent.com/.../install.sh | bash
+
+    # Force user installation
+    curl -sSL https://raw.githubusercontent.com/.../install.sh | bash -s -- --user
+
+    # Force system installation
+    curl -sSL https://raw.githubusercontent.com/.../install.sh | bash -s -- --system
+
+    # Using environment variable
+    INSTALL_MODE=user bash -c "\$(curl -sSL https://raw.githubusercontent.com/.../install.sh)"
+
+DOCUMENTATION:
+    https://github.com/metaforensics-ai/semantics-av-cli
+
+EOF
+    exit 0
+}
+
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --user)
+                if [ -n "$INSTALL_MODE" ]; then
+                    print_error "Cannot specify both --user and --system"
+                    exit 1
+                fi
+                INSTALL_MODE="user"
+                shift
+                ;;
+            --system)
+                if [ -n "$INSTALL_MODE" ]; then
+                    print_error "Cannot specify both --user and --system"
+                    exit 1
+                fi
+                INSTALL_MODE="system"
+                shift
+                ;;
+            --help|-h)
+                show_help
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                echo "      Use --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+}
+
 cleanup_on_error() {
     local exit_code=$?
     if [ $exit_code -ne 0 ]; then
@@ -107,31 +175,31 @@ detect_platform() {
 }
 
 determine_install_mode() {
-    if [ -n "${INSTALL_MODE:-}" ]; then
+    if [ -n "$INSTALL_MODE" ]; then
         if [ "$INSTALL_MODE" = "system" ]; then
             INSTALL_PREFIX="/usr/local"
+            print_success "Mode: system (specified)"
+            return
         elif [ "$INSTALL_MODE" = "user" ]; then
             INSTALL_PREFIX="$HOME/.local"
-        else
-            print_error "Invalid INSTALL_MODE: $INSTALL_MODE"
-            exit 1
+            print_success "Mode: user (specified)"
+            return
         fi
-        print_success "Mode: $INSTALL_MODE (forced by environment)"
-        return
     fi
     
+    # Priority 2: Auto-detection
     if [ "$EUID" -eq 0 ]; then
         INSTALL_MODE="system"
         INSTALL_PREFIX="/usr/local"
-        print_success "Mode: system (running as root)"
+        print_success "Mode: system (auto-detected: running as root)"
     elif sudo -n true 2>/dev/null; then
         INSTALL_MODE="system"
         INSTALL_PREFIX="/usr/local"
-        print_success "Mode: system (sudo available)"
+        print_success "Mode: system (auto-detected: sudo available)"
     else
         INSTALL_MODE="user"
         INSTALL_PREFIX="$HOME/.local"
-        print_success "Mode: user (no sudo privileges)"
+        print_success "Mode: user (auto-detected: no sudo privileges)"
     fi
 }
 
@@ -354,22 +422,24 @@ show_next_steps() {
     echo "Next steps:"
     echo "  1. Configure:"
     if [ "$INSTALL_MODE" = "system" ]; then
-        print_color "$color_green" "     sudo semantics-av config init"
+        print_color "$color_green" "     sudo semantics-av config init --defaults"
     else
-        print_color "$color_green" "     semantics-av config init"
+        print_color "$color_green" "     semantics-av config init --defaults"
     fi
     
     echo ""
-    echo "  2. Update models:"
-    print_color "$color_green" "     semantics-av update"
-    
-    echo ""
-    echo "  3. Start daemon:"
+    echo "  2. Start daemon:"
     if [ "$INSTALL_MODE" = "system" ]; then
         print_color "$color_green" "     sudo systemctl start semantics-av"
+        print_color "$color_green" "     sudo systemctl enable semantics-av"
     else
         print_color "$color_green" "     systemctl --user start semantics-av"
+        print_color "$color_green" "     systemctl --user enable semantics-av"
     fi
+    
+    echo ""
+    echo "  3. Update models:"
+    print_color "$color_green" "     semantics-av update"
     
     echo ""
     echo "  4. Scan files:"
@@ -381,6 +451,8 @@ show_next_steps() {
 }
 
 main() {
+    parse_arguments "$@"
+    
     print_header "SemanticsAV Installation"
     
     print_step "1/5" "Checking system requirements..."
