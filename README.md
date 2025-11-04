@@ -11,6 +11,14 @@
 
 ---
 
+## 🚀 See It In Action
+
+<p align="center">
+  <img src="docs/demo.gif" alt="SemanticsAV Quick Start Demo" width="100%">
+</p>
+
+---
+
 ## What Is SemanticsAV Platform?
 
 **SemanticsAV Platform delivers AI-native malware detection that analyzes what code *means*, not what it *looks like*.** By understanding semantic context and design intent—rather than matching syntactic patterns—it detects zero-day threats that evade traditional signature-based and sandbox approaches.
