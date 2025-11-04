@@ -27,6 +27,8 @@ private:
     int executeThroughDaemon();
     int executeDirect();
     
+    void fixModelFilesOwnership(const std::string& models_path);
+    
     std::string formatTimestamp(int64_t unix_timestamp) const;
 };
 

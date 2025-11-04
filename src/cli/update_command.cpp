@@ -13,6 +13,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <map>
+#include <pwd.h>
 
 namespace semantics_av {
 namespace cli {
@@ -177,6 +178,7 @@ int UpdateCommand::executeThroughDaemon() {
 int UpdateCommand::executeDirect() {
     try {
         auto& config = common::Config::instance().global();
+        auto& path_manager = common::PathManager::instance();
         
         if (!quiet_) {
             std::cout << "SemanticsAV Model Updater\n";
@@ -246,6 +248,10 @@ int UpdateCommand::executeDirect() {
         for (auto& [type, renderer] : progress_bars) {
             renderer->complete();
             renderer->clear();
+        }
+        
+        if (path_manager.isSystemMode() && getuid() == 0 && summary.updated_models > 0) {
+            fixModelFilesOwnership(config.models_path);
         }
         
         if (!quiet_) {
@@ -322,6 +328,30 @@ int UpdateCommand::executeDirect() {
     } catch (const std::exception& e) {
         std::cerr << "Update error: " << e.what() << "\n";
         return 1;
+    }
+}
+
+void UpdateCommand::fixModelFilesOwnership(const std::string& models_path) {
+    struct passwd* pw = getpwnam(constants::system::DAEMON_USER);
+    if (!pw) {
+        common::Logger::instance().warn(
+            "[Update] Daemon user '{}' not found, skipping ownership fix",
+            constants::system::DAEMON_USER);
+        return;
+    }
+    
+    std::error_code ec;
+    for (auto& entry : std::filesystem::recursive_directory_iterator(models_path, ec)) {
+        if (std::filesystem::is_regular_file(entry, ec)) {
+            if (chown(entry.path().c_str(), pw->pw_uid, pw->pw_gid) == 0) {
+                common::Logger::instance().debug(
+                    "[Update] Ownership fixed | file={}", entry.path().string());
+            } else {
+                common::Logger::instance().warn(
+                    "[Update] Failed to chown | file={} | error={}", 
+                    entry.path().string(), strerror(errno));
+            }
+        }
     }
 }
 
