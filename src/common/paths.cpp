@@ -55,21 +55,7 @@ std::vector<std::string> PathManager::getConfigSearchPaths() const {
         paths.push_back(env);
     }
     
-    std::string user_config = getUserConfigFile();
-    if (!user_config.empty()) {
-        paths.push_back(user_config);
-    }
-    
-    switch (mode_) {
-        case InstallMode::SYSTEM:
-            paths.push_back("/etc/semantics-av/semantics-av.conf");
-            break;
-        case InstallMode::USER:
-            break;
-        case InstallMode::PORTABLE:
-            paths.push_back("./config/semantics-av.conf");
-            break;
-    }
+    paths.push_back(getConfigFile());
     
     return paths;
 }
@@ -159,13 +145,6 @@ std::string PathManager::getSystemSecretsFile() const {
         return "";
     }
     return "/etc/semantics-av/secrets.conf";
-}
-
-std::string PathManager::getUserConfigFile() const {
-    if (mode_ == InstallMode::SYSTEM) {
-        return "";
-    }
-    return getConfigDir() + "/config.conf";
 }
 
 std::string PathManager::getXdgConfigHome() const {

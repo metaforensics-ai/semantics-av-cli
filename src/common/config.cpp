@@ -125,11 +125,6 @@ bool Config::load(const std::string& config_file) {
             }
         }
         
-        std::string user_config = path_manager.getUserConfigFile();
-        if (!user_config.empty() && tryLoadTomlFile(user_config, "user config")) {
-            has_any_config = true;
-        }
-        
         if (global_.api_key.empty()) {
             std::string system_secrets = path_manager.getSystemSecretsFile();
             if (!system_secrets.empty() && tryLoadTomlFile(system_secrets, "system secrets")) {
@@ -137,7 +132,7 @@ bool Config::load(const std::string& config_file) {
             }
         }
         
-        if (tryLoadTomlFile(effective_config_file, "system config")) {
+        if (tryLoadTomlFile(effective_config_file, "main config")) {
             has_any_config = true;
         }
         

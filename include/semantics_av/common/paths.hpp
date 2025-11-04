@@ -29,7 +29,6 @@ public:
     std::string getSocketPath() const;
     std::string getUserCredentialsFile() const;
     std::string getSystemSecretsFile() const;
-    std::string getUserConfigFile() const;
     
     std::vector<std::string> getConfigSearchPaths() const;
     
