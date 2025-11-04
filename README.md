@@ -107,51 +107,52 @@ Differences may occur due to:
 
 ### Installation
 
-The installer automatically detects your environment and chooses the best installation method:
-```bash
-curl -sSL https://raw.githubusercontent.com/metaforensics-ai/semantics-av-cli/main/scripts/install.sh | bash
-```
+Choose your installation type:
 
-**What it does:**
-- Detects if you have sudo privileges
-- Installs system-wide if possible, user-local otherwise
-- Downloads, builds, and configures everything
-- Runs post-install setup automatically
-
-### Initial Setup
-
-After installation completes, configure and start the service:
-
-```bash
-# Configure with defaults
-semantics-av config init --defaults
-
-# Start daemon (system installation)
-sudo systemctl start semantics-av
-sudo systemctl enable semantics-av
-
-# Or start daemon (user installation)
-systemctl --user start semantics-av
-systemctl --user enable semantics-av
-
-# Update detection models
-semantics-av update
-
-# Scan your first file
-semantics-av scan /path/to/file
-```
-
-### Advanced Installation Options
-
-**Force user installation** (installs to `~/.local`, no sudo):
+**User Installation** (recommended for personal use):
 ```bash
 curl -sSL https://raw.githubusercontent.com/metaforensics-ai/semantics-av-cli/main/scripts/install.sh | bash -s -- --user
 ```
+- Installs to `~/.local`
+- No sudo required
+- Easy to uninstall
 
-**Force system installation** (requires sudo, installs to `/usr/local`):
+**System Installation** (for server/multi-user environments):
 ```bash
 curl -sSL https://raw.githubusercontent.com/metaforensics-ai/semantics-av-cli/main/scripts/install.sh | bash -s -- --system
 ```
+- Installs to `/usr/local`
+- Requires sudo privileges
+- Runs as system service
+
+### Initial Setup
+```bash
+# 1. Configure
+semantics-av config init --defaults
+
+# 2. Update detection models
+semantics-av update
+
+# 3. Start scanning
+semantics-av scan /path/to/file
+```
+
+**Optional: Enable daemon for background services**
+```bash
+# System installation
+sudo systemctl start semantics-av
+sudo systemctl enable semantics-av
+
+# User installation
+systemctl --user start semantics-av
+systemctl --user enable semantics-av
+```
+
+**Why use daemon?** (Optional)
+- HTTP API for remote integration
+- Automatic model updates in background
+- System service integration
+- Always-on availability for instant responses
 
 ### Optional: Enable Cloud Intelligence
 
@@ -199,7 +200,6 @@ strings /usr/lib64/libstdc++.so.6 | grep GLIBCXX  # or /usr/lib/x86_64-linux-gnu
 ## Manual Installation (From Source)
 
 For advanced users who prefer manual control:
-
 ```bash
 # Clone repository
 git clone https://github.com/metaforensics-ai/semantics-av-cli.git
@@ -227,40 +227,20 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ### Configuration
 
-**Interactive wizard** (recommended for first-time setup):
-```bash
-semantics-av config init
-```
-
-**Quick setup with defaults** (non-interactive):
+**Quick setup:**
 ```bash
 semantics-av config init --defaults
 ```
 
-**Validate configuration:**
-```bash
-semantics-av config validate
-```
-
 **View configuration:**
 ```bash
-# Show all configuration (sensitive values masked)
 semantics-av config show
-
-# Show specific value
-semantics-av config get log_level
 ```
 
-**Advanced configuration:**
+**Set specific values:**
 ```bash
-# Adjust scan threads
-semantics-av config set scan.default_threads 8
-
-# Change daemon HTTP port
-semantics-av config set daemon.http_port 9216
-
-# Set log level
 semantics-av config set log_level DEBUG
+semantics-av config set scan.default_threads 8
 ```
 
 **Configuration locations:**
@@ -270,157 +250,81 @@ semantics-av config set log_level DEBUG
 ### API Key Configuration
 
 Required for cloud analysis features. Obtain your API key from [SemanticsAV Console](https://console.semanticsav.ai).
-
 ```bash
-# Set API key
 semantics-av config set api_key "sav_your_api_key_here"
-
-# Verify configuration
-semantics-av config show
 ```
 
-**Storage locations:**
-- **System mode:** `/etc/semantics-av/secrets.conf` (secure, requires sudo)
-- **User mode:** `~/.config/semantics-av/credentials` (user-specific)
-
 ### Model Management
-
-**Update detection models** (required for first-time setup):
 ```bash
 # Download latest models
 semantics-av update
-```
 
-**Advanced update options:**
-```bash
 # Check for updates without downloading
 semantics-av update --check-only
 
 # Force complete model re-download
 semantics-av update --force
-
-# Update specific model types
-semantics-av update --model-types pe,elf
 ```
-
-Models are automatically updated periodically when daemon is running.
 
 ### Scanning Files (Offline, Free)
 
-**Scan files completely offline with zero network dependency:**
+**Basic scanning:**
 ```bash
 # Scan single file
 semantics-av scan /path/to/file.exe
-```
 
-**Recursive directory scan:**
-```bash
-# Multi-threaded directory scan
+# Recursive directory scan
 semantics-av scan /path/to/directory -r -t 8
 
 # Show only infected files
 semantics-av scan /path/to/directory -r -i
 
-# Include file hashes in output
+# Include file hashes
 semantics-av scan /path/to/file.exe -H
-```
 
-**Output formats:**
-```bash
 # JSON output
 semantics-av scan /path/to/file.exe --json
-
-# JSON for directory scan
-semantics-av scan /path/to/directory -r --json > results.json
 ```
-
-**Scanning requires no network connectivity and operates entirely offline.**
 
 ### Cloud Analysis (Requires API Key)
 
-**Analyze files with detailed forensic intelligence:**
+**Generate forensic intelligence reports:**
 ```bash
 # Basic analysis
 semantics-av analyze /path/to/suspicious.exe
-```
 
-**Generate formatted reports:**
-```bash
 # HTML report (opens in browser)
 semantics-av analyze suspicious.exe --format html -o report.html
 
 # Markdown report
 semantics-av analyze suspicious.exe --format markdown -o report.md
 
-# JSON report (machine-readable)
-semantics-av analyze suspicious.exe --format json -o report.json
-```
-
-**Multi-language reports:**
-```bash
-# Specify report language (en, ko, ja, zh, es, fr, de, it, pt, ru, ar)
+# Multi-language support (en, ko, ja, zh, es, fr, de, it, pt, ru, ar)
 semantics-av analyze suspicious.exe --language ko
-```
 
-**Skip automatic report generation:**
-```bash
-# Get quick attribution without natural language report
+# Skip natural language report generation
 semantics-av analyze suspicious.exe --no-report
 ```
 
 ### Report Management
-
-Manage saved analysis reports (automatically saved when using `analyze` command).
-
-**List reports:**
 ```bash
-# List all reports (default: 20 most recent)
+# List all reports
 semantics-av report list
 
-# Filter by verdict
+# Filter by verdict/date/type
 semantics-av report list --filter verdict:malicious
-
-# Filter by date
-semantics-av report list --filter date:2024-01-15
 semantics-av report list --filter date:week
 
-# Sort and limit
-semantics-av report list --sort verdict --limit 50
-```
-
-**Show specific report:**
-```bash
-# Display report in console
+# Show specific report
 semantics-av report show <report-id>
 
-# Export as JSON
-semantics-av report show <report-id> --format json
-```
-
-**Convert report format:**
-```bash
-# Convert to HTML
+# Convert format
 semantics-av report convert <report-id> --format html -o report.html
 
-# Convert to Markdown
-semantics-av report convert <report-id> --format markdown -o report.md
-```
-
-**Delete reports:**
-```bash
-# Delete specific report
+# Delete reports
 semantics-av report delete <report-id>
-
-# Delete old reports (older than N days)
 semantics-av report delete --older-than 90
-
-# Delete by verdict
-semantics-av report delete --verdict malicious
 ```
-
-**Storage location:**
-- **System mode:** `/var/lib/semantics-av/reports/`
-- **User mode:** `~/.local/share/semantics-av/reports/`
 
 ---
 
@@ -428,59 +332,27 @@ semantics-av report delete --verdict malicious
 
 ### Daemon Management
 
-The daemon provides optimal performance, automatic permission handling, and system-wide integration.
-
-**Starting the daemon:**
-```bash
-# System daemon (requires root privileges)
-sudo systemctl start semantics-av
-sudo systemctl enable semantics-av
-
-# User daemon (no root required)
-systemctl --user start semantics-av
-systemctl --user enable semantics-av
-```
-
-**Checking daemon status:**
+**Start/stop daemon:**
 ```bash
 # System daemon
+sudo systemctl start semantics-av
+sudo systemctl stop semantics-av
 sudo systemctl status semantics-av
 
 # User daemon
+systemctl --user start semantics-av
+systemctl --user stop semantics-av
 systemctl --user status semantics-av
-```
 
-**Stopping and restarting:**
-```bash
-# Stop daemon
-sudo systemctl stop semantics-av
-
-# Restart daemon
-sudo systemctl restart semantics-av
-
-# Reload configuration without restart
+# Reload configuration
 semantics-av daemon reload
-```
-
-**Manual daemon control** (non-systemd systems):
-```bash
-# Start daemon in foreground
-semantics-av daemon run
-
-# Start in background
-semantics-av daemon start
-
-# Stop manually
-semantics-av daemon stop
 ```
 
 ### HTTP API Integration
 
 When daemon is running, REST API is available at `http://127.0.0.1:9216` (configurable).
 
-**Available endpoints:**
-
-**1. Scan File**
+**Scan file:**
 ```bash
 curl -X POST http://127.0.0.1:9216/api/v1/scan \
      -F "file=@suspicious.exe"
@@ -499,72 +371,36 @@ curl -X POST http://127.0.0.1:9216/api/v1/scan \
 }
 ```
 
-**2. Analyze File (Requires API Key)**
-```bash
-curl -X POST http://127.0.0.1:9216/api/v1/analyze \
-     -F "file=@suspicious.exe" \
-     -F "language=en"
-```
-
-**3. Update Models**
-```bash
-curl -X POST http://127.0.0.1:9216/api/v1/models/update \
-     -H "Content-Type: application/json" \
-     -d '{"force_update": false}'
-```
-
-**4. Daemon Status**
-```bash
-curl http://127.0.0.1:9216/api/v1/status
-```
-
-**5. Health Check**
-```bash
-curl http://127.0.0.1:9216/api/v1/health
-```
+**Additional endpoints:**
+- `POST /api/v1/analyze` - Cloud analysis
+- `POST /api/v1/models/update` - Update models
+- `GET /api/v1/status` - Daemon status
+- `GET /api/v1/health` - Health check
 
 ### Unix Socket Integration
 
-For high-performance local integration, daemon also listens on Unix socket:
+For high-performance local integration:
 - **System:** `/var/run/semantics-av/semantics-av.sock`
 - **User:** `~/.local/state/semantics-av/semantics-av.sock`
 
-Binary protocol specification available in source code (`include/semantics_av/daemon/protocol.hpp`).
-
-**Advantages:**
-- Zero-copy file descriptor passing
-- Lower latency than HTTP
-- Direct daemon communication
+Binary protocol with zero-copy file descriptor passing. Specification in `include/semantics_av/daemon/protocol.hpp`.
 
 ---
 
 ## Maintenance
 
 ### Uninstallation
-
 ```bash
-# Download and run uninstaller
 curl -sSL https://raw.githubusercontent.com/metaforensics-ai/semantics-av-cli/main/scripts/uninstall.sh | bash
-
-# Or if installed from source
-cd semantics-av-cli/build
-sudo make uninstall  # system-wide
-# or
-make uninstall       # user-local
 ```
 
-The uninstaller:
-- Automatically detects installation type
-- Stops and disables daemon services
-- Removes binaries and libraries
-- Optionally removes configuration and data files
+The uninstaller automatically detects installation type and optionally removes configuration/data files.
 
 ---
 
 ## How It Works
 
 SemanticsAV operates in two modes: offline malware detection and optional cloud intelligence.
-
 ```mermaid
 sequenceDiagram
     participant User
