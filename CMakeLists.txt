@@ -34,6 +34,7 @@ set(COMMON_SOURCES
     src/common/types.cpp
     src/common/security.cpp
     src/common/paths.cpp
+    src/common/diagnostics.cpp
     src/common/progress_bar.cpp
 )
 

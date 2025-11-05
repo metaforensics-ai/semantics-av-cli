@@ -1,6 +1,8 @@
 #include "scan_command.hpp"
 #include "semantics_av/common/config.hpp"
 #include "semantics_av/common/logger.hpp"
+#include "semantics_av/common/paths.hpp"
+#include "semantics_av/common/diagnostics.hpp"
 #include "semantics_av/core/engine.hpp"
 #include "semantics_av/scan/scanner.hpp"
 #include "semantics_av/scan/result_formatter.hpp"
@@ -407,10 +409,21 @@ std::vector<std::filesystem::path> ScanCommand::collectFilesForDaemon(
 
 int ScanCommand::executeStandalone(const std::filesystem::path& path) {
     auto& config = common::Config::instance().global();
+    auto& path_manager = common::PathManager::instance();
+    
+    if (!diagnostics::hasModelFiles(config.models_path)) {
+        diagnostics::printUpdateGuide(path_manager.isSystemMode(), config.models_path);
+        return 1;
+    }
     
     core::SemanticsAVEngine engine;
     if (!engine.initialize(config.base_path, config.api_key)) {
         std::cerr << "Error: Failed to initialize scan engine" << std::endl;
+        
+        if (!diagnostics::hasModelFiles(config.models_path)) {
+            diagnostics::printUpdateGuide(path_manager.isSystemMode(), config.models_path);
+        }
+        
         return 1;
     }
     

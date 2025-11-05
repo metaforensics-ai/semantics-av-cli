@@ -51,6 +51,8 @@ private:
     bool isLanguageSupported(const std::string& lang) const;
     
     std::string formatBytes(size_t bytes) const;
+    
+    void fixReportOwnership(const std::string& report_id, const std::string& report_dir);
 };
 
 }}

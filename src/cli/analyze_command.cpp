@@ -3,6 +3,7 @@
 #include "semantics_av/common/constants.hpp"
 #include "semantics_av/common/logger.hpp"
 #include "semantics_av/common/paths.hpp"
+#include "semantics_av/common/diagnostics.hpp"
 #include "semantics_av/core/engine.hpp"
 #include "semantics_av/network/analysis_service.hpp"
 #include "semantics_av/daemon/client.hpp"
@@ -18,6 +19,7 @@
 #include <sstream>
 #include <fstream>
 #include <unistd.h>
+#include <pwd.h>
 
 namespace semantics_av {
 namespace cli {
@@ -106,6 +108,11 @@ int AnalyzeCommand::execute() {
     }
     
     if (config.api_key.empty()) {
+        if (!diagnostics::canAccessApiKey()) {
+            diagnostics::printApiKeyGuide(path_manager.isSystemMode());
+            return 1;
+        }
+        
         std::cerr << "\n\033[31mAPI key required for cloud analysis\033[0m\n\n";
         
         std::string credentials_path = path_manager.getUserCredentialsFile();
@@ -201,10 +208,21 @@ int AnalyzeCommand::executeThroughDaemon() {
 int AnalyzeCommand::executeDirect() {
     try {
         auto& config = common::Config::instance().global();
+        auto& path_manager = common::PathManager::instance();
+        
+        if (!diagnostics::hasModelFiles(config.models_path)) {
+            diagnostics::printUpdateGuide(path_manager.isSystemMode(), config.models_path);
+            return 1;
+        }
         
         core::SemanticsAVEngine engine;
         if (!engine.initialize(config.base_path, config.api_key)) {
             std::cerr << "Error: Failed to initialize scan engine" << std::endl;
+            
+            if (!diagnostics::hasModelFiles(config.models_path)) {
+                diagnostics::printUpdateGuide(path_manager.isSystemMode(), config.models_path);
+            }
+            
             return 1;
         }
         
@@ -270,6 +288,10 @@ int AnalyzeCommand::executeWithFormat(const network::AnalysisResult& result, siz
             
             if (!report_id.empty()) {
                 std::cout << "Report ID: " << report_id << std::endl;
+                
+                if (getuid() == 0) {
+                    fixReportOwnership(report_id, custom_dir);
+                }
             }
         }
         
@@ -421,6 +443,37 @@ std::string AnalyzeCommand::formatBytes(size_t bytes) const {
     std::ostringstream oss;
     oss << std::fixed << std::setprecision(1) << size << units[unit];
     return oss.str();
+}
+
+void AnalyzeCommand::fixReportOwnership(const std::string& report_id, const std::string& report_dir) {
+    auto& path_manager = common::PathManager::instance();
+    
+    report::ReportStorage storage(report_dir);
+    std::string reports_dir = storage.getReportsDir();
+    std::string report_file = reports_dir + "/" + report_id + ".json";
+    
+    if (!std::filesystem::exists(report_file)) {
+        return;
+    }
+    
+    if (path_manager.isSystemMode()) {
+        struct passwd* pw = getpwnam(constants::system::DAEMON_USER);
+        if (!pw) {
+            common::Logger::instance().warn(
+                "[AnalyzeCommand] Daemon user not found | user={}", 
+                constants::system::DAEMON_USER);
+            return;
+        }
+        
+        if (chown(report_file.c_str(), pw->pw_uid, pw->pw_gid) == 0) {
+            common::Logger::instance().debug(
+                "[AnalyzeCommand] Report ownership fixed | file={}", report_file);
+        } else {
+            common::Logger::instance().warn(
+                "[AnalyzeCommand] Failed to chown report | file={} | error={}", 
+                report_file, strerror(errno));
+        }
+    }
 }
 
 }}

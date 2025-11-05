@@ -4,10 +4,13 @@
 #include "semantics_av/format/json_formatter.hpp"
 #include "semantics_av/daemon/client.hpp"
 #include "semantics_av/common/logger.hpp"
+#include "semantics_av/common/paths.hpp"
+#include "semantics_av/common/diagnostics.hpp"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
 #include <nlohmann/json.hpp>
+#include <unistd.h>
 
 namespace semantics_av {
 namespace cli {
@@ -362,6 +365,25 @@ int ReportCommand::executeDelete() {
     }
     
     if (!use_daemon) {
+        std::string reports_dir = storage.getReportsDir();
+        if (access(reports_dir.c_str(), W_OK) != 0) {
+            auto& path_manager = common::PathManager::instance();
+            
+            std::string command = "semantics-av report delete";
+            if (!delete_report_id_.empty()) {
+                command += " " + delete_report_id_;
+            }
+            if (delete_older_than_ > 0) {
+                command += " --older-than " + std::to_string(delete_older_than_);
+            }
+            if (!delete_verdict_.empty()) {
+                command += " --verdict " + delete_verdict_;
+            }
+            
+            diagnostics::printPermissionGuide(reports_dir, command, path_manager.isSystemMode());
+            return 1;
+        }
+        
         for (const auto& id : to_delete) {
             if (storage.deleteReport(id)) {
                 deleted++;

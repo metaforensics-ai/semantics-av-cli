@@ -36,9 +36,9 @@ private:
     
     CLI::App* delete_cmd_;
     std::string delete_report_id_;
-    int delete_older_than_;
+    int delete_older_than_ = 0;
     std::string delete_verdict_;
-    bool delete_confirm_;
+    bool delete_confirm_ = false;
     
     CLI::App* info_cmd_;
     std::string info_report_id_;
