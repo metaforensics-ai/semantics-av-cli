@@ -153,6 +153,15 @@ std::string TableRenderer::extractChunk(const std::string& text, size_t& pos, in
     const char* start = ptr;
     
     while (ptr < end && accumulated_width < max_width) {
+        if (*ptr == '\033') {
+            ptr++;
+            while (ptr < end && *ptr != 'm') {
+                ptr++;
+            }
+            if (ptr < end) ptr++;
+            continue;
+        }
+        
         wchar_t wc;
         size_t len = std::mbrtowc(&wc, ptr, end - ptr, &state);
         
@@ -161,7 +170,9 @@ std::string TableRenderer::extractChunk(const std::string& text, size_t& pos, in
             accumulated_width++;
         } else {
             int char_width = wcwidth(wc);
-            if (char_width < 0) char_width = 1;
+            if (char_width == -1) {
+                char_width = 0;
+            }
             
             if (accumulated_width + char_width > max_width) {
                 break;
@@ -302,7 +313,13 @@ int TableRenderer::getDisplayWidth(const std::string& text) {
                 width++;
             } else {
                 int char_width = wcwidth(wc);
-                width += (char_width > 0) ? char_width : 1;
+                if (char_width == -1) {
+                    width += 0;
+                } else if (char_width == 0) {
+                    
+                } else {
+                    width += char_width;
+                }
                 ptr += len;
             }
         } else {

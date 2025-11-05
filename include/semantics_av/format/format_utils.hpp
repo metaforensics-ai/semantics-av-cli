@@ -25,5 +25,11 @@ std::string formatBasicValue(const nlohmann::json& value);
 
 std::string formatSmartArray(const nlohmann::json& arr);
 
+std::string sanitizeControlCharacters(const std::string& text);
+
+bool isControlCharacter(unsigned char c);
+
+std::string getControlCharReplacement(unsigned char c);
+
 }
 }

@@ -2,9 +2,63 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <cctype>
 
 namespace semantics_av {
 namespace format {
+
+std::string sanitizeControlCharacters(const std::string& text) {
+    std::ostringstream result;
+    
+    for (size_t i = 0; i < text.length(); ++i) {
+        unsigned char c = static_cast<unsigned char>(text[i]);
+        
+        if (isControlCharacter(c)) {
+            result << getControlCharReplacement(c);
+        } else if ((c & 0x80) != 0) {
+            size_t utf8_len = 0;
+            if ((c & 0xE0) == 0xC0) utf8_len = 2;
+            else if ((c & 0xF0) == 0xE0) utf8_len = 3;
+            else if ((c & 0xF8) == 0xF0) utf8_len = 4;
+            
+            if (utf8_len > 0 && i + utf8_len <= text.length()) {
+                bool valid = true;
+                for (size_t j = 1; j < utf8_len; ++j) {
+                    if ((static_cast<unsigned char>(text[i + j]) & 0xC0) != 0x80) {
+                        valid = false;
+                        break;
+                    }
+                }
+                
+                if (valid) {
+                    for (size_t j = 0; j < utf8_len; ++j) {
+                        result << text[i + j];
+                    }
+                    i += utf8_len - 1;
+                } else {
+                    result << "\uFFFD";
+                }
+            } else {
+                result << "\uFFFD";
+            }
+        } else {
+            result << c;
+        }
+    }
+    
+    return result.str();
+}
+
+bool isControlCharacter(unsigned char c) {
+    return (c < 0x20 && c != 0x09 && c != 0x0A && c != 0x0D) || c == 0x7F;
+}
+
+std::string getControlCharReplacement(unsigned char c) {
+    std::ostringstream oss;
+    oss << "<" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') 
+        << static_cast<int>(c) << ">";
+    return oss.str();
+}
 
 std::string formatSmartArray(const nlohmann::json& arr) {
     if (arr.empty()) {
@@ -46,7 +100,7 @@ std::string formatSmartArray(const nlohmann::json& arr) {
         
         std::string item_str;
         if (arr[i].is_string()) {
-            item_str = arr[i].get<std::string>();
+            item_str = sanitizeControlCharacters(arr[i].get<std::string>());
         } else if (arr[i].is_number_integer()) {
             item_str = std::to_string(arr[i].get<int64_t>());
         } else if (arr[i].is_number_float()) {
@@ -158,7 +212,7 @@ std::string formatBasicValue(const nlohmann::json& value) {
         oss << std::fixed << std::setprecision(2) << value.get<double>();
         return oss.str();
     } else if (value.is_string()) {
-        return value.get<std::string>();
+        return sanitizeControlCharacters(value.get<std::string>());
     } else if (value.is_array()) {
         return formatSmartArray(value);
     } else if (value.is_object()) {
