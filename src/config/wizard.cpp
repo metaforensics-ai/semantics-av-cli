@@ -35,48 +35,27 @@ ConfigWizard::ConfigWizard() {
 }
 
 void ConfigWizard::initializeDefaults() {
-    using namespace constants;
+    config_ = common::Config::createDefaultConfig();
     
     auto& path_manager = common::PathManager::instance();
     
     config_.base_path = path_manager.getDataDir();
     config_.models_path = config_.base_path + "/models";
-    config_.log_file = path_manager.getLogDir() + "/semantics-av.log";
-    config_.log_level = common::LogLevel::INFO;
-    config_.network_timeout = constants::network::DEFAULT_TIMEOUT_SECONDS;
-    config_.auto_update = true;
-    config_.update_interval_minutes = limits::DEFAULT_UPDATE_INTERVAL_MINUTES;
-    config_.max_scan_size_mb = limits::DEFAULT_MAX_FILE_SIZE_MB;
-    config_.scan_timeout_seconds = limits::DEFAULT_SCAN_TIMEOUT_SECONDS;
-    config_.max_recursion_depth = limits::DEFAULT_MAX_RECURSION_DEPTH;
-    
-    config_.scan.default_threads = limits::DEFAULT_SCAN_THREADS;
-    config_.scan.scan_batch_size = limits::DEFAULT_SCAN_BATCH_SIZE;
-    
     config_.daemon.socket_path = path_manager.getSocketPath();
-    config_.daemon.http_host = "127.0.0.1";
-    config_.daemon.http_port = limits::DEFAULT_HTTP_PORT;
     
     if (path_manager.isSystemMode()) {
-        config_.daemon.max_connections = limits::DEFAULT_DAEMON_MAX_CONNECTIONS_SYSTEM;
-        config_.daemon.max_queue = limits::DEFAULT_DAEMON_MAX_QUEUE_SYSTEM;
-        config_.daemon.user = system::DAEMON_USER;
-        config_.daemon.group = system::DAEMON_GROUP;
+        config_.log_file = "/var/log/semantics-av/semantics-av.log";
+        config_.daemon.user = constants::system::DAEMON_USER;
+        config_.daemon.group = constants::system::DAEMON_GROUP;
+        config_.daemon.max_connections = constants::config_defaults::DAEMON_MAX_CONNECTIONS_SYSTEM;
+        config_.daemon.max_queue = constants::config_defaults::DAEMON_MAX_QUEUE_SYSTEM;
     } else {
-        config_.daemon.max_connections = limits::DEFAULT_DAEMON_MAX_CONNECTIONS_USER;
-        config_.daemon.max_queue = limits::DEFAULT_DAEMON_MAX_QUEUE_USER;
+        config_.log_file = path_manager.getLogDir() + "/semantics-av.log";
         config_.daemon.user = "";
         config_.daemon.group = "";
+        config_.daemon.max_connections = constants::config_defaults::DAEMON_MAX_CONNECTIONS_USER;
+        config_.daemon.max_queue = constants::config_defaults::DAEMON_MAX_QUEUE_USER;
     }
-    
-    config_.daemon.read_timeout = limits::DEFAULT_DAEMON_READ_TIMEOUT;
-    config_.daemon.worker_threads = 0;
-    config_.daemon.socket_buffer_kb = limits::DEFAULT_DAEMON_SOCKET_BUFFER_KB;
-    config_.daemon.connection_backlog = limits::DEFAULT_DAEMON_CONNECTION_BACKLOG;
-    
-    config_.logging.rotation_size_mb = limits::DEFAULT_LOG_ROTATION_SIZE_MB;
-    config_.logging.max_files = limits::DEFAULT_LOG_MAX_FILES;
-    config_.logging.format = common::LogFormat::TEXT;
 }
 
 void ConfigWizard::loadExistingConfig() {

@@ -93,9 +93,11 @@ public:
     std::optional<std::string> findBestConfig() const;
     bool checkHealth() const;
     void suggestFix() const;
+    
+    static GlobalConfig createDefaultConfig();
 
 private:
-    Config() = default;
+    Config();
     GlobalConfig global_;
     std::map<std::string, std::string> raw_values_;
     std::string current_config_path_;

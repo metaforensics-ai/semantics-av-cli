@@ -87,5 +87,36 @@ namespace limits {
     constexpr size_t DEFAULT_LOG_MAX_FILES = 5;
 }
 
+namespace config_defaults {
+    constexpr int NETWORK_TIMEOUT = limits::DEFAULT_NETWORK_TIMEOUT_SECONDS;
+    constexpr bool AUTO_UPDATE = true;
+    constexpr int UPDATE_INTERVAL_MINUTES = limits::DEFAULT_UPDATE_INTERVAL_MINUTES;
+    constexpr int MAX_SCAN_SIZE_MB = limits::DEFAULT_MAX_FILE_SIZE_MB;
+    constexpr int SCAN_TIMEOUT_SECONDS = limits::DEFAULT_SCAN_TIMEOUT_SECONDS;
+    constexpr int MAX_RECURSION_DEPTH = limits::DEFAULT_MAX_RECURSION_DEPTH;
+    
+    constexpr int SCAN_DEFAULT_THREADS = limits::DEFAULT_SCAN_THREADS;
+    constexpr size_t SCAN_BATCH_SIZE = limits::DEFAULT_SCAN_BATCH_SIZE;
+    
+    constexpr size_t LOG_ROTATION_SIZE_MB = limits::DEFAULT_LOG_ROTATION_SIZE_MB;
+    constexpr size_t LOG_MAX_FILES = limits::DEFAULT_LOG_MAX_FILES;
+    
+    constexpr bool REPORT_ENABLE_STORAGE = true;
+    constexpr int REPORT_RETENTION_DAYS = 90;
+    constexpr bool REPORT_AUTO_CLEANUP = true;
+    constexpr int REPORT_MAX_REPORTS = 1000;
+    
+    constexpr uint16_t DAEMON_HTTP_PORT = limits::DEFAULT_HTTP_PORT;
+    constexpr const char* DAEMON_HTTP_HOST = limits::DEFAULT_HTTP_HOST;
+    constexpr int DAEMON_MAX_CONNECTIONS_SYSTEM = limits::DEFAULT_DAEMON_MAX_CONNECTIONS_SYSTEM;
+    constexpr int DAEMON_MAX_CONNECTIONS_USER = limits::DEFAULT_DAEMON_MAX_CONNECTIONS_USER;
+    constexpr int DAEMON_MAX_QUEUE_SYSTEM = limits::DEFAULT_DAEMON_MAX_QUEUE_SYSTEM;
+    constexpr int DAEMON_MAX_QUEUE_USER = limits::DEFAULT_DAEMON_MAX_QUEUE_USER;
+    constexpr int DAEMON_READ_TIMEOUT = limits::DEFAULT_DAEMON_READ_TIMEOUT;
+    constexpr int DAEMON_WORKER_THREADS = 0;
+    constexpr size_t DAEMON_SOCKET_BUFFER_KB = limits::DEFAULT_DAEMON_SOCKET_BUFFER_KB;
+    constexpr int DAEMON_CONNECTION_BACKLOG = limits::DEFAULT_DAEMON_CONNECTION_BACKLOG;
+}
+
 }
 }

@@ -19,6 +19,55 @@ Config& Config::instance() {
     return instance;
 }
 
+Config::Config() {
+    global_ = createDefaultConfig();
+}
+
+GlobalConfig Config::createDefaultConfig() {
+    using namespace constants::config_defaults;
+    
+    GlobalConfig config;
+    
+    config.log_level = LogLevel::INFO;
+    config.network_timeout = NETWORK_TIMEOUT;
+    config.auto_update = AUTO_UPDATE;
+    config.update_interval_minutes = UPDATE_INTERVAL_MINUTES;
+    config.max_scan_size_mb = MAX_SCAN_SIZE_MB;
+    config.scan_timeout_seconds = SCAN_TIMEOUT_SECONDS;
+    config.max_recursion_depth = MAX_RECURSION_DEPTH;
+    config.api_key = "";
+    config.base_path = "";
+    config.models_path = "";
+    config.log_file = "";
+    
+    config.scan.default_threads = SCAN_DEFAULT_THREADS;
+    config.scan.scan_batch_size = SCAN_BATCH_SIZE;
+    
+    config.logging.rotation_size_mb = LOG_ROTATION_SIZE_MB;
+    config.logging.max_files = LOG_MAX_FILES;
+    config.logging.format = LogFormat::TEXT;
+    
+    config.report.enable_storage = REPORT_ENABLE_STORAGE;
+    config.report.reports_dir = "";
+    config.report.retention_days = REPORT_RETENTION_DAYS;
+    config.report.auto_cleanup = REPORT_AUTO_CLEANUP;
+    config.report.max_reports = REPORT_MAX_REPORTS;
+    
+    config.daemon.http_port = DAEMON_HTTP_PORT;
+    config.daemon.http_host = DAEMON_HTTP_HOST;
+    config.daemon.read_timeout = DAEMON_READ_TIMEOUT;
+    config.daemon.worker_threads = DAEMON_WORKER_THREADS;
+    config.daemon.socket_buffer_kb = DAEMON_SOCKET_BUFFER_KB;
+    config.daemon.connection_backlog = DAEMON_CONNECTION_BACKLOG;
+    config.daemon.socket_path = "";
+    config.daemon.user = "";
+    config.daemon.group = "";
+    config.daemon.max_connections = DAEMON_MAX_CONNECTIONS_SYSTEM;
+    config.daemon.max_queue = DAEMON_MAX_QUEUE_SYSTEM;
+    
+    return config;
+}
+
 std::optional<std::string> Config::findBestConfig() const {
     auto paths = PathManager::instance().getConfigSearchPaths();
     
@@ -84,7 +133,7 @@ void Config::suggestFix() const {
 
 bool Config::load(const std::string& config_file) {
     try {
-        applyDefaults();
+        global_ = createDefaultConfig();
         
         auto& path_manager = PathManager::instance();
         
@@ -94,14 +143,18 @@ bool Config::load(const std::string& config_file) {
         
         if (path_manager.isUserMode()) {
             global_.log_file = path_manager.getLogDir() + "/semantics-av.log";
-            global_.daemon.http_host = constants::limits::DEFAULT_HTTP_HOST;
+            global_.daemon.http_host = constants::config_defaults::DAEMON_HTTP_HOST;
             global_.daemon.user = "";
             global_.daemon.group = "";
+            global_.daemon.max_connections = constants::config_defaults::DAEMON_MAX_CONNECTIONS_USER;
+            global_.daemon.max_queue = constants::config_defaults::DAEMON_MAX_QUEUE_USER;
         } else {
             global_.log_file = "/var/log/semantics-av/semantics-av.log";
-            global_.daemon.http_host = constants::limits::DEFAULT_HTTP_HOST;
+            global_.daemon.http_host = constants::config_defaults::DAEMON_HTTP_HOST;
             global_.daemon.user = constants::system::DAEMON_USER;
             global_.daemon.group = constants::system::DAEMON_GROUP;
+            global_.daemon.max_connections = constants::config_defaults::DAEMON_MAX_CONNECTIONS_SYSTEM;
+            global_.daemon.max_queue = constants::config_defaults::DAEMON_MAX_QUEUE_SYSTEM;
         }
         
         std::string effective_config_file = config_file;
@@ -642,38 +695,29 @@ std::string Config::getPidFilePath() const {
 }
 
 void Config::applyDefaults() {
-    using namespace constants;
+    global_ = createDefaultConfig();
     
-    global_ = GlobalConfig{};
-    global_.log_level = LogLevel::INFO;
-    global_.network_timeout = network::DEFAULT_TIMEOUT_SECONDS;
-    global_.auto_update = true;
-    global_.update_interval_minutes = limits::DEFAULT_UPDATE_INTERVAL_MINUTES;
-    global_.max_scan_size_mb = limits::DEFAULT_MAX_FILE_SIZE_MB;
-    global_.scan_timeout_seconds = limits::DEFAULT_SCAN_TIMEOUT_SECONDS;
-    global_.max_recursion_depth = limits::DEFAULT_MAX_RECURSION_DEPTH;
+    auto& path_manager = PathManager::instance();
     
-    global_.scan.default_threads = limits::DEFAULT_SCAN_THREADS;
-    global_.scan.scan_batch_size = limits::DEFAULT_SCAN_BATCH_SIZE;
+    global_.base_path = path_manager.getDataDir();
+    global_.models_path = global_.base_path + "/models";
+    global_.daemon.socket_path = path_manager.getSocketPath();
     
-    global_.daemon.http_host = limits::DEFAULT_HTTP_HOST;
-    global_.daemon.http_port = limits::DEFAULT_HTTP_PORT;
-    global_.daemon.max_connections = limits::DEFAULT_DAEMON_MAX_CONNECTIONS_SYSTEM;
-    global_.daemon.max_queue = limits::DEFAULT_DAEMON_MAX_QUEUE_SYSTEM;
-    global_.daemon.read_timeout = limits::DEFAULT_DAEMON_READ_TIMEOUT;
-    global_.daemon.worker_threads = 0;
-    global_.daemon.socket_buffer_kb = limits::DEFAULT_DAEMON_SOCKET_BUFFER_KB;
-    global_.daemon.connection_backlog = limits::DEFAULT_DAEMON_CONNECTION_BACKLOG;
-    
-    global_.logging.rotation_size_mb = limits::DEFAULT_LOG_ROTATION_SIZE_MB;
-    global_.logging.max_files = limits::DEFAULT_LOG_MAX_FILES;
-    global_.logging.format = LogFormat::TEXT;
-    
-    global_.report.enable_storage = true;
-    global_.report.reports_dir = "";
-    global_.report.retention_days = 90;
-    global_.report.auto_cleanup = true;
-    global_.report.max_reports = 1000;
+    if (path_manager.isSystemMode()) {
+        global_.log_file = "/var/log/semantics-av/semantics-av.log";
+        global_.daemon.http_host = constants::config_defaults::DAEMON_HTTP_HOST;
+        global_.daemon.user = constants::system::DAEMON_USER;
+        global_.daemon.group = constants::system::DAEMON_GROUP;
+        global_.daemon.max_connections = constants::config_defaults::DAEMON_MAX_CONNECTIONS_SYSTEM;
+        global_.daemon.max_queue = constants::config_defaults::DAEMON_MAX_QUEUE_SYSTEM;
+    } else {
+        global_.log_file = path_manager.getLogDir() + "/semantics-av.log";
+        global_.daemon.http_host = constants::config_defaults::DAEMON_HTTP_HOST;
+        global_.daemon.user = "";
+        global_.daemon.group = "";
+        global_.daemon.max_connections = constants::config_defaults::DAEMON_MAX_CONNECTIONS_USER;
+        global_.daemon.max_queue = constants::config_defaults::DAEMON_MAX_QUEUE_USER;
+    }
 }
 
 }}
