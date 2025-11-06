@@ -7,6 +7,8 @@
 #include "semantics_av/network/downloader.hpp"
 #include "semantics_av/update/updater.hpp"
 #include "semantics_av/format/json_formatter.hpp"
+#include "semantics_av/format/html_formatter.hpp"
+#include "semantics_av/format/markdown_formatter.hpp"
 #include "semantics_av/report/storage.hpp"
 #include <semantics_av/semantics_av.hpp>
 #include <nlohmann/json.hpp>
@@ -246,7 +248,22 @@ void HttpApiServer::handleShowReport(const httplib::Request& req, httplib::Respo
     try {
         std::string report_id = req.matches[1];
         
-        common::Logger::instance().debug("[HTTP] Show report request | id={}", report_id);
+        std::string format = "json";
+        if (req.has_param("format")) {
+            format = req.get_param_value("format");
+            if (!validateFormat(format)) {
+                nlohmann::json details;
+                details["provided"] = format;
+                details["supported"] = std::vector<std::string>{"json", "html", "markdown"};
+                http::HttpResponse::sendError(res, http::ErrorCode::REQUEST_INVALID_PARAMETER, 
+                                             "Invalid format parameter", details);
+                common::Logger::instance().warn("[HTTP] Invalid format | format={}", format);
+                return;
+            }
+        }
+        
+        common::Logger::instance().debug("[HTTP] Show report request | id={} | format={}", 
+                                        report_id, format);
         
         report::ReportStorage storage;
         auto result = storage.load(report_id);
@@ -260,10 +277,23 @@ void HttpApiServer::handleShowReport(const httplib::Request& req, httplib::Respo
             return;
         }
         
-        auto report_json = format::JsonFormatter::format(*result);
-        http::HttpResponse::sendSuccess(res, report_json);
+        if (format == "json") {
+            auto report_json = format::JsonFormatter::format(*result);
+            http::HttpResponse::sendSuccess(res, report_json);
+        } else if (format == "html") {
+            format::HtmlFormatter formatter;
+            std::string html_content = formatter.format(*result);
+            res.status = 200;
+            res.set_content(html_content, "text/html");
+        } else if (format == "markdown") {
+            format::MarkdownFormatter formatter;
+            std::string markdown_content = formatter.format(*result);
+            res.status = 200;
+            res.set_content(markdown_content, "text/markdown");
+        }
         
-        common::Logger::instance().info("[HTTP] Show report complete | id={}", report_id);
+        common::Logger::instance().info("[HTTP] Show report complete | id={} | format={}", 
+                                       report_id, format);
         
     } catch (const std::exception& e) {
         common::ErrorContext ctx;
@@ -510,7 +540,34 @@ void HttpApiServer::handleAnalyzeFile(const httplib::Request& req, httplib::Resp
                 return;
             }
             
+            std::string report_id;
+            auto& config = common::Config::instance().global();
+            if (config.report.enable_storage) {
+                try {
+                    report::ReportStorage storage;
+                    std::string original_path = file.filename.empty() ? "uploaded_file" : file.filename;
+                    report_id = storage.save(result, original_path, language, file.content.size());
+                    
+                    if (!report_id.empty()) {
+                        common::Logger::instance().debug(
+                            "[HTTP] Report saved | id={} | verdict={}", 
+                            report_id, result.verdict
+                        );
+                    }
+                } catch (const std::exception& e) {
+                    common::Logger::instance().warn(
+                        "[HTTP] Report save failed | error={}", 
+                        e.what()
+                    );
+                }
+            }
+            
             auto json_result = format::JsonFormatter::format(result);
+            
+            if (!report_id.empty()) {
+                json_result["saved_report_id"] = report_id;
+            }
+            
             http::HttpResponse::sendSuccess(res, json_result);
             
             common::Logger::instance().info("[HTTP] Analysis complete | file={} | verdict={} | confidence={:.1f}", 
@@ -675,7 +732,7 @@ bool HttpApiServer::validateLanguage(const std::string& language) {
 }
 
 bool HttpApiServer::validateFormat(const std::string& format) {
-    return format == "json";
+    return format == "json" || format == "html" || format == "markdown";
 }
 
 void HttpApiServer::sendJsonResponse(httplib::Response& res, const nlohmann::json& data, int status) {
