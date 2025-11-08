@@ -1,0 +1,32 @@
+services:
+  semantics-av:
+    image: semantics-av:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    secrets:
+      - api-key
+    environment:
+      SEMANTICS_AV_LOG_LEVEL: INFO
+      SEMANTICS_AV_WORKER_THREADS: 0
+      SEMANTICS_AV_AUTO_UPDATE: true
+      SEMANTICS_AV_UPDATE_INTERVAL: 60
+      SEMANTICS_AV_NETWORK_TIMEOUT: 120
+    volumes:
+      - data:/var/lib/semantics-av
+    ports:
+      - "9216:9216"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9216/api/v1/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+secrets:
+  api-key:
+    file: ./api-key.txt
+
+volumes:
+  data:

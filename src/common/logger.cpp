@@ -3,9 +3,26 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <iostream>
 #include <filesystem>
+#include <cstdlib>
 
 namespace semantics_av {
 namespace common {
+
+static bool isRunningInContainer() {
+    if (std::getenv("SEMANTICS_AV_CONTAINER")) {
+        return true;
+    }
+    
+    if (std::filesystem::exists("/.dockerenv")) {
+        return true;
+    }
+    
+    if (std::getenv("KUBERNETES_SERVICE_HOST")) {
+        return true;
+    }
+    
+    return false;
+}
 
 Logger& Logger::instance() {
     static Logger instance;
@@ -29,7 +46,12 @@ void Logger::initialize(LogMode mode, const std::string& log_file, LogLevel leve
         auto spdlog_level = toSpdlogLevel(level);
         std::vector<spdlog::sink_ptr> sinks;
         
-        if (mode == LogMode::FILE_ONLY) {
+        LogMode effective_mode = mode;
+        if (isRunningInContainer() && mode == LogMode::FILE_ONLY) {
+            effective_mode = LogMode::CONSOLE_ONLY;
+        }
+        
+        if (effective_mode == LogMode::FILE_ONLY) {
             if (log_file.empty()) {
                 throw std::runtime_error("Log file path required for FILE_ONLY mode");
             }
@@ -88,7 +110,7 @@ create_logger:
         
         logger_->set_level(spdlog_level);
         
-        if (mode == LogMode::FILE_ONLY) {
+        if (effective_mode == LogMode::FILE_ONLY) {
             logger_->flush_on(spdlog::level::info);
             spdlog::flush_every(std::chrono::seconds(3));
         }
