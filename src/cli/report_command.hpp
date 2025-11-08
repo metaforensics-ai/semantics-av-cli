@@ -30,7 +30,9 @@ private:
     std::string show_format_;
     
     CLI::App* convert_cmd_;
-    std::string convert_report_id_;
+    std::string convert_input_;
+    std::string convert_input_file_;
+    bool convert_use_stdin_ = false;
     std::string convert_format_;
     std::string convert_output_;
     

@@ -250,42 +250,32 @@ void ReportStorage::cleanupByCount(int max) {
     }
 }
 
-std::optional<network::AnalysisResult> ReportStorage::load(const std::string& report_id) {
-    if (!isValidReportId(report_id)) {
-        common::Logger::instance().warn("[ReportStorage] Invalid report ID | id={}", report_id);
-        return std::nullopt;
-    }
-    
-    auto report_path = getReportPath(report_id);
-    
-    if (!std::filesystem::exists(report_path)) {
-        common::Logger::instance().warn("[ReportStorage] Report not found | id={}", report_id);
-        return std::nullopt;
-    }
-    
-    std::ifstream file(report_path);
-    if (!file) {
-        common::Logger::instance().error("[ReportStorage] Failed to open file | path={}", 
-                                        report_path.string());
-        return std::nullopt;
-    }
-    
-    nlohmann::json report_json;
-    try {
-        file >> report_json;
-    } catch (const std::exception& e) {
-        common::Logger::instance().error("[ReportStorage] Failed to parse JSON | error={}", e.what());
-        return std::nullopt;
-    }
-    
-    if (!report_json.contains("analysis_result")) {
-        common::Logger::instance().error("[ReportStorage] Invalid report format | id={}", report_id);
-        return std::nullopt;
-    }
-    
-    auto analysis_json = report_json["analysis_result"];
+std::optional<network::AnalysisResult> ReportStorage::parseAnalysisResultFromJsonInternal(
+    const nlohmann::json& analysis_json) {
     
     network::AnalysisResult result;
+    
+    auto safeGetString = [](const nlohmann::json& json, const std::string& key, const std::string& default_value = "") {
+        if (json.contains(key) && !json[key].is_null() && json[key].is_string()) {
+            return json[key].get<std::string>();
+        }
+        return default_value;
+    };
+    
+    auto safeGetFloat = [](const nlohmann::json& json, const std::string& key, float default_value = 0.0f) {
+        if (json.contains(key) && !json[key].is_null() && json[key].is_number()) {
+            return json[key].get<float>();
+        }
+        return default_value;
+    };
+    
+    auto safeGetInt = [](const nlohmann::json& json, const std::string& key, int default_value = 0) {
+        if (json.contains(key) && !json[key].is_null() && json[key].is_number()) {
+            return json[key].get<int>();
+        }
+        return default_value;
+    };
+    
     result.file_type = safeGetString(analysis_json, "file_type");
     result.analysis_timestamp = safeGetString(analysis_json, "analysis_timestamp");
     result.sdk_version = safeGetString(analysis_json, "sdk_version");
@@ -386,7 +376,7 @@ std::optional<network::AnalysisResult> ReportStorage::load(const std::string& re
             
             result.intelligence.statistics.processed_samples = safeGetInt(stats_json, "processed_samples", 0);
             
-            auto parse_label_stats = [this](const nlohmann::json& json) -> network::LabelStatistics {
+            auto parse_label_stats = [&safeGetInt, &safeGetFloat](const nlohmann::json& json) -> network::LabelStatistics {
                 network::LabelStatistics stats;
                 stats.count = safeGetInt(json, "count", 0);
                 if (json.contains("max_similarity") && !json["max_similarity"].is_null() && json["max_similarity"].is_number()) {
@@ -427,8 +417,79 @@ std::optional<network::AnalysisResult> ReportStorage::load(const std::string& re
         }
     }
     
-    common::Logger::instance().debug("[ReportStorage] Loaded | id={}", report_id);
     return result;
+}
+
+std::optional<network::AnalysisResult> ReportStorage::parseAnalysisResultFromJson(
+    const std::string& json_str) {
+    
+    try {
+        nlohmann::json json = nlohmann::json::parse(json_str);
+        
+        if (json.contains("analysis_result")) {
+            return parseAnalysisResultFromJsonInternal(json["analysis_result"]);
+        } else if (json.contains("detection") || json.contains("verdict")) {
+            return parseAnalysisResultFromJsonInternal(json);
+        } else {
+            common::Logger::instance().error("[ReportStorage] Invalid JSON structure");
+            return std::nullopt;
+        }
+    } catch (const std::exception& e) {
+        common::Logger::instance().error("[ReportStorage] JSON parse failed | error={}", e.what());
+        return std::nullopt;
+    }
+}
+
+std::optional<network::AnalysisResult> ReportStorage::parseAnalysisResultFromJsonFile(
+    const std::string& file_path) {
+    
+    std::ifstream file(file_path);
+    if (!file) {
+        common::Logger::instance().error("[ReportStorage] Failed to open file | path={}", file_path);
+        return std::nullopt;
+    }
+    
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    
+    return parseAnalysisResultFromJson(buffer.str());
+}
+
+std::optional<network::AnalysisResult> ReportStorage::load(const std::string& report_id) {
+    if (!isValidReportId(report_id)) {
+        common::Logger::instance().warn("[ReportStorage] Invalid report ID | id={}", report_id);
+        return std::nullopt;
+    }
+    
+    auto report_path = getReportPath(report_id);
+    
+    if (!std::filesystem::exists(report_path)) {
+        common::Logger::instance().warn("[ReportStorage] Report not found | id={}", report_id);
+        return std::nullopt;
+    }
+    
+    std::ifstream file(report_path);
+    if (!file) {
+        common::Logger::instance().error("[ReportStorage] Failed to open file | path={}", 
+                                        report_path.string());
+        return std::nullopt;
+    }
+    
+    nlohmann::json report_json;
+    try {
+        file >> report_json;
+    } catch (const std::exception& e) {
+        common::Logger::instance().error("[ReportStorage] Failed to parse JSON | error={}", e.what());
+        return std::nullopt;
+    }
+    
+    if (!report_json.contains("analysis_result")) {
+        common::Logger::instance().error("[ReportStorage] Invalid report format | id={}", report_id);
+        return std::nullopt;
+    }
+    
+    common::Logger::instance().debug("[ReportStorage] Loaded | id={}", report_id);
+    return parseAnalysisResultFromJsonInternal(report_json["analysis_result"]);
 }
 
 std::vector<ReportMetadata> ReportStorage::list(const ListOptions& options) {

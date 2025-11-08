@@ -49,6 +49,7 @@ private:
     void handleHealth(const httplib::Request& req, httplib::Response& res);
     void handleListReports(const httplib::Request& req, httplib::Response& res);
     void handleShowReport(const httplib::Request& req, httplib::Response& res);
+    void handleConvertReport(const httplib::Request& req, httplib::Response& res);
     
     std::string saveTempFile(const httplib::FormData& file);
     bool validateFileSize(size_t size);

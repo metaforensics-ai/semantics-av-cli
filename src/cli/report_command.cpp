@@ -37,7 +37,9 @@ void ReportCommand::setup(CLI::App* subcommand) {
     show_cmd_->callback([this]() { was_called_ = true; });
     
     convert_cmd_ = subcommand->add_subcommand("convert", "Convert report format");
-    convert_cmd_->add_option("report_id", convert_report_id_, "Report ID")->required();
+    convert_cmd_->add_option("input", convert_input_, "Report ID or JSON file path");
+    convert_cmd_->add_option("-i,--input-file", convert_input_file_, "Read from JSON file");
+    convert_cmd_->add_flag("--stdin", convert_use_stdin_, "Read JSON from stdin");
     convert_cmd_->add_option("-f,--format", convert_format_, "Target format: console, html, markdown, json")
                  ->required();
     convert_cmd_->add_option("-o,--output", convert_output_, "Output file path (required for html/markdown)");
@@ -242,31 +244,74 @@ int ReportCommand::executeConvert() {
         return 1;
     }
     
+    std::optional<network::AnalysisResult> result;
+    
+    if (convert_use_stdin_) {
+        std::stringstream buffer;
+        buffer << std::cin.rdbuf();
+        result = report::ReportStorage::parseAnalysisResultFromJson(buffer.str());
+        
+        if (!result) {
+            std::cerr << "Error: Failed to parse JSON from stdin" << std::endl;
+            return 1;
+        }
+    } else if (!convert_input_file_.empty()) {
+        result = report::ReportStorage::parseAnalysisResultFromJsonFile(convert_input_file_);
+        
+        if (!result) {
+            std::cerr << "Error: Failed to parse JSON file: " << convert_input_file_ << std::endl;
+            return 1;
+        }
+    } else if (!convert_input_.empty()) {
+        if (std::filesystem::exists(convert_input_) && convert_input_.ends_with(".json")) {
+            result = report::ReportStorage::parseAnalysisResultFromJsonFile(convert_input_);
+            
+            if (!result) {
+                std::cerr << "Error: Failed to parse JSON file: " << convert_input_ << std::endl;
+                return 1;
+            }
+        } else {
+            report::ReportStorage storage;
+            result = storage.load(convert_input_);
+            
+            if (!result) {
+                std::cerr << "Error: Report not found: " << convert_input_ << std::endl;
+                return 1;
+            }
+        }
+    } else {
+        std::cerr << "Error: No input specified. Use positional argument, --input-file, or --stdin" << std::endl;
+        return 1;
+    }
+    
     std::string output_path = convert_output_;
     
     if (output_path.empty() && (format == report::ConvertFormat::HTML || 
                                  format == report::ConvertFormat::MARKDOWN)) {
-        output_path = convert_report_id_ + ext;
+        if (!convert_input_.empty() && !convert_input_.ends_with(".json")) {
+            output_path = convert_input_ + ext;
+        } else {
+            output_path = "report" + ext;
+        }
     }
     
     report::ReportConverter converter;
     
     if (output_path.empty()) {
-        report::ReportStorage storage;
-        auto result = storage.load(convert_report_id_);
-        
-        if (!result) {
-            std::cerr << "Report not found: " << convert_report_id_ << std::endl;
-            return 1;
-        }
-        
         converter.convert(*result, format, std::cout);
     } else {
-        if (!converter.convertFile(convert_report_id_, format, output_path)) {
-            std::cerr << "Conversion failed" << std::endl;
+        std::ofstream file(output_path);
+        if (!file) {
+            std::cerr << "Error: Failed to create output file: " << output_path << std::endl;
             return 1;
         }
         
+        if (!converter.convert(*result, format, file)) {
+            std::cerr << "Error: Conversion failed" << std::endl;
+            return 1;
+        }
+        
+        file.close();
         std::cout << "Converted to: " << std::filesystem::absolute(output_path).string() << std::endl;
     }
     

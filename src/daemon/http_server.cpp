@@ -148,6 +148,10 @@ void HttpApiServer::setupRoutes() {
         handleShowReport(req, res);
     });
     
+    server_->Post("/api/v1/reports/convert", [this](const auto& req, auto& res) {
+        handleConvertReport(req, res);
+    });
+    
     server_->set_error_handler([](const auto& req, auto& res) {
         if (!res.body.empty()) {
             return;
@@ -159,6 +163,101 @@ void HttpApiServer::setupRoutes() {
             http::HttpResponse::sendError(res, http::ErrorCode::REQUEST_METHOD_NOT_ALLOWED);
         }
     });
+}
+
+void HttpApiServer::handleConvertReport(const httplib::Request& req, httplib::Response& res) {
+    try {
+        common::Logger::instance().debug("[HTTP] Convert report request");
+        
+        if (req.body.empty()) {
+            nlohmann::json details;
+            details["reason"] = "Empty request body";
+            http::HttpResponse::sendError(res, http::ErrorCode::REQUEST_INVALID_PARAMETER, details);
+            return;
+        }
+        
+        nlohmann::json request_json;
+        try {
+            request_json = nlohmann::json::parse(req.body);
+        } catch (...) {
+            nlohmann::json details;
+            details["reason"] = "Invalid JSON body";
+            http::HttpResponse::sendError(res, http::ErrorCode::REQUEST_INVALID_PARAMETER, details);
+            return;
+        }
+        
+        if (!request_json.contains("format") || !request_json["format"].is_string()) {
+            nlohmann::json details;
+            details["reason"] = "Missing or invalid 'format' field";
+            http::HttpResponse::sendError(res, http::ErrorCode::REQUEST_MISSING_PARAMETER, details);
+            return;
+        }
+        
+        std::string format = request_json["format"];
+        if (!validateFormat(format)) {
+            nlohmann::json details;
+            details["provided"] = format;
+            details["supported"] = std::vector<std::string>{"json", "html", "markdown"};
+            http::HttpResponse::sendError(res, http::ErrorCode::REQUEST_INVALID_PARAMETER, 
+                                         "Invalid format parameter", details);
+            return;
+        }
+        
+        std::optional<network::AnalysisResult> result;
+        
+        if (request_json.contains("source") && request_json["source"].is_object()) {
+            auto source = request_json["source"];
+            std::string source_type = source.value("type", "");
+            
+            if (source_type == "json" && source.contains("data")) {
+                std::string json_str = source["data"].dump();
+                result = report::ReportStorage::parseAnalysisResultFromJson(json_str);
+            } else if (source_type == "report_id" && source.contains("data")) {
+                std::string report_id = source["data"];
+                report::ReportStorage storage;
+                result = storage.load(report_id);
+            }
+        } else if (request_json.contains("data")) {
+            std::string json_str = request_json["data"].dump();
+            result = report::ReportStorage::parseAnalysisResultFromJson(json_str);
+        }
+        
+        if (!result) {
+            nlohmann::json details;
+            details["reason"] = "Failed to parse analysis result";
+            http::HttpResponse::sendError(res, http::ErrorCode::ANALYSIS_PAYLOAD_INVALID, details);
+            common::Logger::instance().warn("[HTTP] Failed to parse analysis result");
+            return;
+        }
+        
+        if (format == "json") {
+            auto json = format::JsonFormatter::format(*result);
+            http::HttpResponse::sendSuccess(res, json);
+        } else if (format == "html") {
+            format::HtmlFormatter formatter;
+            std::string html_content = formatter.format(*result);
+            res.status = 200;
+            res.set_content(html_content, "text/html");
+        } else if (format == "markdown") {
+            format::MarkdownFormatter formatter;
+            std::string markdown_content = formatter.format(*result);
+            res.status = 200;
+            res.set_content(markdown_content, "text/markdown");
+        }
+        
+        common::Logger::instance().info("[HTTP] Convert report complete | format={}", format);
+        
+    } catch (const std::exception& e) {
+        common::ErrorContext ctx;
+        ctx.component = "HTTP";
+        ctx.details["exception"] = e.what();
+        ctx.details["endpoint"] = "/api/v1/reports/convert";
+        
+        nlohmann::json details;
+        details["exception"] = e.what();
+        http::HttpResponse::sendError(res, http::ErrorCode::SYSTEM_INTERNAL_ERROR, details);
+        common::Logger::instance().error("[HTTP] Convert report exception | {}", common::formatContext(ctx));
+    }
 }
 
 void HttpApiServer::handleListReports(const httplib::Request& req, httplib::Response& res) {

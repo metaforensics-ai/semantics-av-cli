@@ -4,7 +4,6 @@
 #include "semantics_av/common/paths.hpp"
 #include "semantics_av/config/wizard.hpp"
 #include "semantics_av/config/validator.hpp"
-#include "semantics_av/daemon/client.hpp"
 #include "semantics_av/daemon/server.hpp"
 #include <iostream>
 #include <iomanip>
@@ -169,7 +168,7 @@ void ConfigCommand::triggerDaemonReloadIfNeeded(const std::string& key) {
         return;
     }
     
-    if (!daemon::DaemonClient::isDaemonRunning()) {
+    if (!daemon::DaemonServer::isDaemonRunning()) {
         std::cout << "\nℹ Daemon not running - changes will apply on next start\n";
         return;
     }
@@ -183,64 +182,6 @@ void ConfigCommand::triggerDaemonReloadIfNeeded(const std::string& key) {
 }
 
 int ConfigCommand::executeGet() {
-    bool use_daemon = !reveal_secrets_ && daemon::DaemonClient::isDaemonRunning();
-    
-    if (use_daemon) {
-        return executeGetThroughDaemon();
-    }
-    
-    return executeGetDirect();
-}
-
-int ConfigCommand::executeGetThroughDaemon() {
-    daemon::DaemonClient client;
-    if (!client.connect()) {
-        std::cerr << "Failed to connect to daemon\n";
-        std::cerr << "Falling back to direct config read\n\n";
-        return executeGetDirect();
-    }
-    
-    std::vector<std::string> keys;
-    if (!get_key_.empty()) {
-        keys.push_back(get_key_);
-    }
-    
-    auto response = client.getConfig(keys);
-    if (!response) {
-        std::cerr << "Failed to get configuration from daemon\n";
-        return 1;
-    }
-    
-    if (get_key_.empty()) {
-        std::cout << "Configuration:\n";
-        
-        std::vector<std::string> ordered_keys = {
-            "base_path", "models_path", "log_file", "log_level", "api_key",
-            "api_base_url", "cdn_url", "network_timeout", "auto_update",
-            "scan.default_threads", "daemon.socket_path", "daemon.http_host",
-            "daemon.http_port", "daemon.worker_threads"
-        };
-        
-        for (const auto& key : ordered_keys) {
-            auto it = response->values.find(key);
-            if (it != response->values.end() && !it->second.empty()) {
-                std::cout << "  " << key << " = " << it->second << "\n";
-            }
-        }
-    } else {
-        auto it = response->values.find(get_key_);
-        if (it != response->values.end()) {
-            std::cout << it->second << "\n";
-        } else {
-            std::cerr << "Unknown configuration key: " << get_key_ << "\n";
-            return 1;
-        }
-    }
-    
-    return 0;
-}
-
-int ConfigCommand::executeGetDirect() {
     auto& config = common::Config::instance();
     
     if (!config.exists()) {
