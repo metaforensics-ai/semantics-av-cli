@@ -3,6 +3,7 @@
 #include "semantics_av/common/security.hpp"
 #include "semantics_av/common/config.hpp"
 #include "semantics_av/common/paths.hpp"
+#include "semantics_av/common/diagnostics.hpp"
 #include "semantics_av/network/downloader.hpp"
 #include "semantics_av/update/updater.hpp"
 #include <sys/socket.h>
@@ -328,7 +329,15 @@ public:
         unlink(socket_path_.c_str());
         
         std::filesystem::path socket_dir = std::filesystem::path(socket_path_).parent_path();
-        std::filesystem::create_directories(socket_dir);
+        std::error_code ec;
+        if (!std::filesystem::create_directories(socket_dir, ec) && 
+            !std::filesystem::exists(socket_dir, ec)) {
+            common::Logger::instance().error("[Socket] Failed to create directory | path={} | error={}", 
+                                             socket_dir.string(), ec.message());
+            ::close(socket_fd_);
+            socket_fd_ = -1;
+            return false;
+        }
         
         sockaddr_un addr{};
         addr.sun_family = AF_UNIX;
@@ -416,6 +425,12 @@ DaemonServer::DaemonServer(const common::DaemonConfig& config) : config_(config)
 
 DaemonServer::~DaemonServer() {
     stopService();
+}
+
+bool DaemonServer::isRunningInContainer() {
+    return std::getenv("SEMANTICS_AV_CONTAINER") != nullptr ||
+           std::filesystem::exists("/.dockerenv") ||
+           std::getenv("KUBERNETES_SERVICE_HOST") != nullptr;
 }
 
 bool DaemonServer::createPidFile() {
@@ -558,6 +573,11 @@ bool DaemonServer::bindSockets() {
 }
 
 bool DaemonServer::createPidFileBeforePrivilegeDrop() {
+    if (isRunningInContainer()) {
+        common::Logger::instance().debug("[Daemon] Container mode, skipping PID file");
+        return true;
+    }
+    
     std::string pid_file = common::Config::instance().getPidFilePath();
     std::filesystem::path pid_dir = std::filesystem::path(pid_file).parent_path();
     
@@ -600,6 +620,41 @@ bool DaemonServer::createPidFileBeforePrivilegeDrop() {
     return true;
 }
 
+void DaemonServer::ensureModelsAvailable() {
+    auto& global_config = common::Config::instance().global();
+    
+    if (diagnostics::hasModelFiles(global_config.models_path)) {
+        common::Logger::instance().info("[Daemon] Model files available");
+        return;
+    }
+    
+    common::Logger::instance().warn("[Daemon] No model files found, downloading...");
+    
+    try {
+        network::ModelDownloader downloader(global_config.network_timeout);
+        update::ModelUpdater updater(engine_.get(), &downloader);
+        
+        update::UpdateOptions options;
+        options.model_types = constants::file_types::getSupported();
+        options.force_update = false;
+        options.check_only = false;
+        options.quiet = false;
+        
+        auto summary = updater.updateModelsSync(options);
+        
+        if (summary.updated_models > 0) {
+            common::Logger::instance().info("[Daemon] Initial models downloaded | updated={}", 
+                                           summary.updated_models);
+        } else {
+            common::Logger::instance().warn("[Daemon] Model download failed | failed={}", 
+                                           summary.failed_models);
+        }
+        
+    } catch (const std::exception& e) {
+        common::Logger::instance().error("[Daemon] Model download exception | error={}", e.what());
+    }
+}
+
 bool DaemonServer::startServiceWithoutPidFile() {
     if (running_) {
         common::Logger::instance().warn("[Daemon] Already running");
@@ -625,6 +680,8 @@ bool DaemonServer::startServiceWithoutPidFile() {
     
     common::Logger::instance().info("[Engine] Initialized | base_path={} | has_api_key={}", 
                                     global_config.base_path, !global_config.api_key.empty());
+    
+    ensureModelsAvailable();
     
     http_server_ = std::make_unique<HttpApiServer>(
         config_.http_host, config_.http_port, engine_.get(), global_config.api_key);
@@ -670,7 +727,7 @@ bool DaemonServer::startService() {
         return true;
     }
     
-    if (checkExistingDaemon()) {
+    if (!isRunningInContainer() && checkExistingDaemon()) {
         common::Logger::instance().error("[Daemon] Another instance is running");
         return false;
     }
@@ -737,7 +794,9 @@ void DaemonServer::stopService() {
         engine_->cleanup();
     }
     
-    removePidFile();
+    if (!isRunningInContainer()) {
+        removePidFile();
+    }
     
     common::Logger::instance().info("[Daemon] Stopped");
 }

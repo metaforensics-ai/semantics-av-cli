@@ -318,32 +318,48 @@ bool Config::tryLoadCredentials(const std::string& path) {
             return false;
         }
         
-        std::string line;
-        while (std::getline(file, line)) {
-            if (line.empty() || line[0] == '#') continue;
+        std::string first_line;
+        if (!std::getline(file, first_line)) {
+            Logger::instance().debug("[Config] Credentials empty | path={}", path);
+            return false;
+        }
+        
+        while (!first_line.empty() && std::isspace(first_line.back())) {
+            first_line.pop_back();
+        }
+        while (!first_line.empty() && std::isspace(first_line.front())) {
+            first_line.erase(0, 1);
+        }
+        
+        if (first_line.empty() || first_line[0] == '#') {
+            Logger::instance().debug("[Config] Credentials invalid format | path={}", path);
+            return false;
+        }
+        
+        auto eq_pos = first_line.find('=');
+        if (eq_pos != std::string::npos) {
+            std::string key = first_line.substr(0, eq_pos);
+            std::string value = first_line.substr(eq_pos + 1);
             
-            auto eq_pos = line.find('=');
-            if (eq_pos != std::string::npos) {
-                std::string key = line.substr(0, eq_pos);
-                std::string value = line.substr(eq_pos + 1);
-                
-                while (!key.empty() && std::isspace(key.back())) key.pop_back();
-                while (!value.empty() && std::isspace(value.front())) value.erase(0, 1);
-                while (!value.empty() && std::isspace(value.back())) value.pop_back();
-                
-                if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
-                    value = value.substr(1, value.size() - 2);
-                }
-                
-                if (key == "api_key" || key == "SEMANTICS_AV_API_KEY") {
-                    global_.api_key = value;
-                }
+            while (!key.empty() && std::isspace(key.back())) key.pop_back();
+            while (!value.empty() && std::isspace(value.front())) value.erase(0, 1);
+            while (!value.empty() && std::isspace(value.back())) value.pop_back();
+            
+            if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+                value = value.substr(1, value.size() - 2);
             }
+            
+            if (key == "api_key" || key == "SEMANTICS_AV_API_KEY") {
+                global_.api_key = value;
+            }
+        } else {
+            global_.api_key = first_line;
         }
         
         Logger::instance().info("[Config] Credentials loaded | path={} | has_api_key={}", 
                                path, !global_.api_key.empty());
         return true;
+        
     } catch (const std::exception& e) {
         Logger::instance().debug("[Config] Credentials parse failed | path={} | error={}", 
                                 path, e.what());

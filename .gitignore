@@ -10,3 +10,5 @@ config/semantics-av.conf
 *.swp
 *.tmp
 _deps/
+docker/api-key.txt
+docker/.env
