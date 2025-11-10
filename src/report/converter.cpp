@@ -3,6 +3,7 @@
 #include "semantics_av/format/console_formatter.hpp"
 #include "semantics_av/format/html_formatter.hpp"
 #include "semantics_av/format/markdown_formatter.hpp"
+#include "semantics_av/format/json_formatter.hpp"
 #include "semantics_av/common/logger.hpp"
 #include <fstream>
 
@@ -23,32 +24,7 @@ bool ReportConverter::convert(const network::AnalysisResult& result,
             }
             
             case ConvertFormat::JSON: {
-                nlohmann::json json;
-                json["verdict"] = result.verdict;
-                json["confidence"] = result.confidence;
-                json["tags"] = result.tags;
-                json["file_type"] = result.file_type;
-                json["file_hashes"] = result.file_hashes;
-                json["analysis_timestamp"] = result.analysis_timestamp;
-                
-                if (result.signature) {
-                    json["signature"] = *result.signature;
-                } else {
-                    json["signature"] = nullptr;
-                }
-                
-                if (result.static_attributes_json) {
-                    try {
-                        json["static_attributes"] = nlohmann::json::parse(*result.static_attributes_json);
-                    } catch (...) {
-                        json["static_attributes"] = nullptr;
-                    }
-                } else {
-                    json["static_attributes"] = nullptr;
-                }
-                
-                json["natural_language_report"] = result.natural_language_report;
-                
+                auto json = format::JsonFormatter::format(result);
                 out << json.dump(2) << std::endl;
                 return true;
             }

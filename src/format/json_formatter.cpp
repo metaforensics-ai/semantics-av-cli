@@ -3,8 +3,13 @@
 namespace semantics_av {
 namespace format {
 
-nlohmann::json JsonFormatter::format(const network::AnalysisResult& result) {
+nlohmann::json JsonFormatter::format(const network::AnalysisResult& result,
+                                     const std::string& report_id) {
     nlohmann::json json;
+    
+    if (!report_id.empty()) {
+        json["metadata"]["report_id"] = report_id;
+    }
     
     json["file_type"] = result.file_type;
     json["file_hashes"] = result.file_hashes;

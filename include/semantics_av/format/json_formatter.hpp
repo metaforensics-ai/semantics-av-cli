@@ -8,7 +8,8 @@ namespace format {
 
 class JsonFormatter {
 public:
-    static nlohmann::json format(const network::AnalysisResult& result);
+    static nlohmann::json format(const network::AnalysisResult& result, 
+                                  const std::string& report_id = "");
 
 private:
     static nlohmann::json formatLabelStatistics(const network::LabelStatistics& stats);

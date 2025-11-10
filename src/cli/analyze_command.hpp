@@ -41,8 +41,17 @@ private:
     int executeDirect();
     int executeWithFormat(const network::AnalysisResult& result, size_t file_size = 0, bool skip_save = false);
     
+    std::string saveReportIfNeeded(const network::AnalysisResult& result, size_t file_size);
+    void emitReportId(const std::string& report_id);
+    int renderOutput(const network::AnalysisResult& result, const std::string& report_id);
+    
+    int renderConsoleOutput(const network::AnalysisResult& result);
+    int renderJsonOutput(const network::AnalysisResult& result, const std::string& report_id);
+    int renderHtmlOutput(const network::AnalysisResult& result);
+    int renderMarkdownOutput(const network::AnalysisResult& result);
+    
     bool canAccessPath(const std::filesystem::path& path);
-    void writeJsonResult(const network::AnalysisResult& result, std::ostream& out);
+    void writeJsonResult(const network::AnalysisResult& result, std::ostream& out, const std::string& report_id = "");
     void writeTextResult(const network::AnalysisResult& result, std::ostream& out);
     std::string generateHtmlResult(const network::AnalysisResult& result);
     std::string generateMarkdownResult(const network::AnalysisResult& result);
