@@ -37,8 +37,6 @@ private:
     int executeInit();
     int executeSet();
     int executeGet();
-    int executeGetThroughDaemon();
-    int executeGetDirect();
     int executeShow();
     int executeValidate();
     

@@ -59,6 +59,12 @@ public:
     ReportStatistics getStats();
     
     std::string getReportsDir() const;
+    
+    static std::optional<network::AnalysisResult> 
+    parseAnalysisResultFromJson(const std::string& json_str);
+    
+    static std::optional<network::AnalysisResult>
+    parseAnalysisResultFromJsonFile(const std::string& file_path);
 
 private:
     std::string reports_dir_;
@@ -84,6 +90,9 @@ private:
     std::string safeGetString(const nlohmann::json& json, const std::string& key, const std::string& default_value = "") const;
     float safeGetFloat(const nlohmann::json& json, const std::string& key, float default_value = 0.0f) const;
     int safeGetInt(const nlohmann::json& json, const std::string& key, int default_value = 0) const;
+    
+    static std::optional<network::AnalysisResult>
+    parseAnalysisResultFromJsonInternal(const nlohmann::json& analysis_json);
 };
 
 }}

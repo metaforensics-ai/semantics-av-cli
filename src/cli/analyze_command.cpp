@@ -277,122 +277,158 @@ int AnalyzeCommand::executeDirect() {
     }
 }
 
+std::string AnalyzeCommand::saveReportIfNeeded(const network::AnalysisResult& result, size_t file_size) {
+    auto& config = common::Config::instance().global();
+    
+    if (!config.report.enable_storage || no_save_) {
+        return "";
+    }
+    
+    std::string custom_dir = report_dir_.empty() ? "" : report_dir_;
+    report::ReportStorage storage(custom_dir);
+    std::string report_id = storage.save(result, target_path_, language_, file_size);
+    
+    if (!report_id.empty() && getuid() == 0) {
+        fixReportOwnership(report_id, custom_dir);
+    }
+    
+    return report_id;
+}
+
+void AnalyzeCommand::emitReportId(const std::string& report_id) {
+    if (report_id.empty() || format_ == OutputFormat::JSON) {
+        return;
+    }
+    
+    std::cout << "Report ID: " << report_id << std::endl;
+}
+
+int AnalyzeCommand::renderOutput(const network::AnalysisResult& result, const std::string& report_id) {
+    switch (format_) {
+        case OutputFormat::CONSOLE:
+            return renderConsoleOutput(result);
+            
+        case OutputFormat::JSON:
+            return renderJsonOutput(result, report_id);
+            
+        case OutputFormat::HTML:
+            return renderHtmlOutput(result);
+            
+        case OutputFormat::MARKDOWN:
+            return renderMarkdownOutput(result);
+    }
+    
+    return 1;
+}
+
+int AnalyzeCommand::renderConsoleOutput(const network::AnalysisResult& result) {
+    if (output_path_.empty()) {
+        writeTextResult(result, std::cout);
+    } else {
+        std::ofstream file_stream(output_path_);
+        if (!file_stream) {
+            std::cerr << "Error: Failed to create output file: " << output_path_ << std::endl;
+            return 1;
+        }
+        writeTextResult(result, file_stream);
+        file_stream.close();
+        std::cerr << "Output written to: " << std::filesystem::absolute(output_path_).string() << std::endl;
+    }
+    return 0;
+}
+
+int AnalyzeCommand::renderJsonOutput(const network::AnalysisResult& result, const std::string& report_id) {
+    if (output_path_.empty()) {
+        writeJsonResult(result, std::cout, report_id);
+    } else {
+        std::ofstream file_stream(output_path_);
+        if (!file_stream) {
+            std::cerr << "Error: Failed to create output file: " << output_path_ << std::endl;
+            return 1;
+        }
+        writeJsonResult(result, file_stream, report_id);
+        file_stream.close();
+        std::cerr << "Output written to: " << std::filesystem::absolute(output_path_).string() << std::endl;
+    }
+    return 0;
+}
+
+int AnalyzeCommand::renderHtmlOutput(const network::AnalysisResult& result) {
+    std::string html_content = generateHtmlResult(result);
+    
+    std::string effective_output_path;
+    if (output_path_.empty()) {
+        std::filesystem::path base_path(target_path_);
+        std::string basename = base_path.stem().string();
+        effective_output_path = basename + ".html";
+    } else {
+        effective_output_path = output_path_;
+    }
+    
+    std::filesystem::path output_file_path(effective_output_path);
+    if (output_file_path.has_parent_path()) {
+        std::filesystem::create_directories(output_file_path.parent_path());
+    }
+    
+    std::ofstream file_stream(effective_output_path);
+    if (!file_stream) {
+        std::cerr << "Error: Failed to create output file: " << effective_output_path << std::endl;
+        return 1;
+    }
+    
+    file_stream << html_content;
+    file_stream.close();
+    
+    std::string abs_path = std::filesystem::absolute(effective_output_path).string();
+    std::cerr << "HTML report saved to: " << abs_path << std::endl;
+    std::cerr << "Open in browser: file://" << abs_path << std::endl;
+    
+    return 0;
+}
+
+int AnalyzeCommand::renderMarkdownOutput(const network::AnalysisResult& result) {
+    std::string markdown_content = generateMarkdownResult(result);
+    
+    std::string effective_output_path;
+    if (output_path_.empty()) {
+        std::filesystem::path base_path(target_path_);
+        std::string basename = base_path.stem().string();
+        effective_output_path = basename + ".md";
+    } else {
+        effective_output_path = output_path_;
+    }
+    
+    std::filesystem::path output_file_path(effective_output_path);
+    if (output_file_path.has_parent_path()) {
+        std::filesystem::create_directories(output_file_path.parent_path());
+    }
+    
+    std::ofstream file_stream(effective_output_path);
+    if (!file_stream) {
+        std::cerr << "Error: Failed to create output file: " << effective_output_path << std::endl;
+        return 1;
+    }
+    
+    file_stream << markdown_content;
+    file_stream.close();
+    
+    std::string abs_path = std::filesystem::absolute(effective_output_path).string();
+    std::cerr << "Markdown report saved to: " << abs_path << std::endl;
+    
+    return 0;
+}
+
 int AnalyzeCommand::executeWithFormat(const network::AnalysisResult& result, size_t file_size, bool skip_save) {
     try {
-        auto& config = common::Config::instance().global();
+        std::string report_id;
         
-        if (!skip_save && config.report.enable_storage && !no_save_) {
-            std::string custom_dir = report_dir_.empty() ? "" : report_dir_;
-            report::ReportStorage storage(custom_dir);
-            std::string report_id = storage.save(result, target_path_, language_, file_size);
-            
-            if (!report_id.empty()) {
-                std::cout << "Report ID: " << report_id << std::endl;
-                
-                if (getuid() == 0) {
-                    fixReportOwnership(report_id, custom_dir);
-                }
-            }
+        if (!skip_save) {
+            report_id = saveReportIfNeeded(result, file_size);
         }
         
-        switch (format_) {
-            case OutputFormat::CONSOLE: {
-                if (output_path_.empty()) {
-                    writeTextResult(result, std::cout);
-                } else {
-                    std::ofstream file_stream(output_path_);
-                    if (!file_stream) {
-                        std::cerr << "Error: Failed to create output file: " << output_path_ << std::endl;
-                        return 1;
-                    }
-                    writeTextResult(result, file_stream);
-                    file_stream.close();
-                    std::cerr << "Output written to: " << std::filesystem::absolute(output_path_).string() << std::endl;
-                }
-                break;
-            }
-            
-            case OutputFormat::JSON: {
-                if (output_path_.empty()) {
-                    writeJsonResult(result, std::cout);
-                } else {
-                    std::ofstream file_stream(output_path_);
-                    if (!file_stream) {
-                        std::cerr << "Error: Failed to create output file: " << output_path_ << std::endl;
-                        return 1;
-                    }
-                    writeJsonResult(result, file_stream);
-                    file_stream.close();
-                    std::cerr << "Output written to: " << std::filesystem::absolute(output_path_).string() << std::endl;
-                }
-                break;
-            }
-            
-            case OutputFormat::HTML: {
-                std::string html_content = generateHtmlResult(result);
-                
-                std::string effective_output_path;
-                if (output_path_.empty()) {
-                    std::filesystem::path base_path(target_path_);
-                    std::string basename = base_path.stem().string();
-                    effective_output_path = basename + ".html";
-                } else {
-                    effective_output_path = output_path_;
-                }
-                
-                std::filesystem::path output_file_path(effective_output_path);
-                if (output_file_path.has_parent_path()) {
-                    std::filesystem::create_directories(output_file_path.parent_path());
-                }
-                
-                std::ofstream file_stream(effective_output_path);
-                if (!file_stream) {
-                    std::cerr << "Error: Failed to create output file: " << effective_output_path << std::endl;
-                    return 1;
-                }
-                
-                file_stream << html_content;
-                file_stream.close();
-                
-                std::string abs_path = std::filesystem::absolute(effective_output_path).string();
-                std::cerr << "HTML report saved to: " << abs_path << std::endl;
-                std::cerr << "Open in browser: file://" << abs_path << std::endl;
-                break;
-            }
-            
-            case OutputFormat::MARKDOWN: {
-                std::string markdown_content = generateMarkdownResult(result);
-                
-                std::string effective_output_path;
-                if (output_path_.empty()) {
-                    std::filesystem::path base_path(target_path_);
-                    std::string basename = base_path.stem().string();
-                    effective_output_path = basename + ".md";
-                } else {
-                    effective_output_path = output_path_;
-                }
-                
-                std::filesystem::path output_file_path(effective_output_path);
-                if (output_file_path.has_parent_path()) {
-                    std::filesystem::create_directories(output_file_path.parent_path());
-                }
-                
-                std::ofstream file_stream(effective_output_path);
-                if (!file_stream) {
-                    std::cerr << "Error: Failed to create output file: " << effective_output_path << std::endl;
-                    return 1;
-                }
-                
-                file_stream << markdown_content;
-                file_stream.close();
-                
-                std::string abs_path = std::filesystem::absolute(effective_output_path).string();
-                std::cerr << "Markdown report saved to: " << abs_path << std::endl;
-                break;
-            }
-        }
+        emitReportId(report_id);
         
-        return 0;
+        return renderOutput(result, report_id);
         
     } catch (const std::exception& e) {
         std::cerr << "Error writing output: " << e.what() << std::endl;
@@ -400,8 +436,8 @@ int AnalyzeCommand::executeWithFormat(const network::AnalysisResult& result, siz
     }
 }
 
-void AnalyzeCommand::writeJsonResult(const network::AnalysisResult& result, std::ostream& out) {
-    auto json = format::JsonFormatter::format(result);
+void AnalyzeCommand::writeJsonResult(const network::AnalysisResult& result, std::ostream& out, const std::string& report_id) {
+    auto json = format::JsonFormatter::format(result, report_id);
     out << json.dump(2) << std::endl;
 }
 

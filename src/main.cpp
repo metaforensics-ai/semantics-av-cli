@@ -18,7 +18,22 @@
 #include "cli/config_command.hpp"
 #include "cli/report_command.hpp"
 
+bool is_daemon_run_command(int argc, char** argv) {
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "daemon" && i + 1 < argc) {
+            std::string subarg = argv[i + 1];
+            return subarg == "run";
+        }
+    }
+    return false;
+}
+
 bool requires_configuration(int argc, char** argv) {
+    if (is_daemon_run_command(argc, argv)) {
+        return false;
+    }
+    
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "config" || arg == "report" || arg == "--version" || arg == "-v" || 
@@ -33,14 +48,19 @@ bool is_interactive_terminal() {
     return isatty(STDIN_FILENO) && isatty(STDOUT_FILENO);
 }
 
-bool is_daemon_run_command(int argc, char** argv) {
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg == "daemon" && i + 1 < argc) {
-            std::string subarg = argv[i + 1];
-            return subarg == "run";
-        }
+bool isRunningInContainer() {
+    if (std::getenv("SEMANTICS_AV_CONTAINER")) {
+        return true;
     }
+    
+    if (std::filesystem::exists("/.dockerenv")) {
+        return true;
+    }
+    
+    if (std::getenv("KUBERNETES_SERVICE_HOST")) {
+        return true;
+    }
+    
     return false;
 }
 
@@ -108,10 +128,11 @@ int main(int argc, char** argv) {
         bool needs_config = requires_configuration(argc, argv);
         bool is_system_mode = path_manager.isSystemMode();
         bool is_root = (getuid() == 0);
+        bool in_container = isRunningInContainer();
         
         auto config_path = config.findBestConfig();
         
-        if (needs_config && !config_path) {
+        if (needs_config && !config_path && !in_container) {
             print_config_missing_help(is_system_mode, is_root);
             
             if (!can_safely_run_wizard(is_system_mode, is_root)) {

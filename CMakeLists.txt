@@ -9,6 +9,8 @@ add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
 
 include(GNUInstallDirs)
 
+option(BUILD_STATIC "Build with static linking for wrapper only" OFF)
+
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "/usr/local" CACHE PATH "Install prefix" FORCE)
 endif()

@@ -14,6 +14,76 @@
 namespace semantics_av {
 namespace common {
 
+static bool isRunningInContainer() {
+    if (std::getenv("SEMANTICS_AV_CONTAINER")) {
+        return true;
+    }
+    
+    if (std::filesystem::exists("/.dockerenv")) {
+        return true;
+    }
+    
+    if (std::getenv("KUBERNETES_SERVICE_HOST")) {
+        return true;
+    }
+    
+    return false;
+}
+
+static std::optional<std::string> getEnv(const char* name) {
+    const char* value = std::getenv(name);
+    if (value && strlen(value) > 0) {
+        return std::string(value);
+    }
+    return std::nullopt;
+}
+
+static void applyEnvironmentVariables(GlobalConfig& config) {
+    if (auto val = getEnv("SEMANTICS_AV_API_KEY")) {
+        config.api_key = *val;
+    }
+    
+    if (auto val = getEnv("SEMANTICS_AV_LOG_LEVEL")) {
+        std::string level = *val;
+        if (level == "DEBUG") config.log_level = LogLevel::DEBUG;
+        else if (level == "INFO") config.log_level = LogLevel::INFO;
+        else if (level == "WARN") config.log_level = LogLevel::WARN;
+        else if (level == "ERROR") config.log_level = LogLevel::ERROR;
+    }
+    
+    if (auto val = getEnv("SEMANTICS_AV_HTTP_HOST")) {
+        config.daemon.http_host = *val;
+    }
+    
+    if (auto val = getEnv("SEMANTICS_AV_HTTP_PORT")) {
+        try {
+            config.daemon.http_port = std::stoi(*val);
+        } catch (...) {}
+    }
+    
+    if (auto val = getEnv("SEMANTICS_AV_WORKER_THREADS")) {
+        try {
+            config.daemon.worker_threads = std::stoi(*val);
+        } catch (...) {}
+    }
+    
+    if (auto val = getEnv("SEMANTICS_AV_AUTO_UPDATE")) {
+        config.auto_update = (*val == "true" || *val == "1");
+    }
+    
+    if (auto val = getEnv("SEMANTICS_AV_UPDATE_INTERVAL")) {
+        try {
+            config.update_interval_minutes = std::stoi(*val);
+        } catch (...) {}
+    }
+    
+    if (auto val = getEnv("SEMANTICS_AV_NETWORK_TIMEOUT")) {
+        try {
+            config.network_timeout = std::stoi(*val);
+        } catch (...) {}
+    }
+}
+
 Config& Config::instance() {
     static Config instance;
     return instance;
@@ -136,29 +206,42 @@ bool Config::load(const std::string& config_file) {
         global_ = createDefaultConfig();
         
         auto& path_manager = PathManager::instance();
+        bool in_container = isRunningInContainer();
         
-        global_.base_path = path_manager.getDataDir();
-        global_.models_path = global_.base_path + "/models";
-        global_.daemon.socket_path = path_manager.getSocketPath();
-        
-        if (path_manager.isUserMode()) {
-            global_.log_file = path_manager.getLogDir() + "/semantics-av.log";
-            global_.daemon.http_host = constants::config_defaults::DAEMON_HTTP_HOST;
+        if (in_container) {
+            global_.base_path = "/var/lib/semantics-av";
+            global_.models_path = "/var/lib/semantics-av/models";
+            global_.daemon.socket_path = "/run/semantics-av/semantics-av.sock";
+            global_.log_file = "";
             global_.daemon.user = "";
             global_.daemon.group = "";
-            global_.daemon.max_connections = constants::config_defaults::DAEMON_MAX_CONNECTIONS_USER;
-            global_.daemon.max_queue = constants::config_defaults::DAEMON_MAX_QUEUE_USER;
-        } else {
-            global_.log_file = "/var/log/semantics-av/semantics-av.log";
-            global_.daemon.http_host = constants::config_defaults::DAEMON_HTTP_HOST;
-            global_.daemon.user = constants::system::DAEMON_USER;
-            global_.daemon.group = constants::system::DAEMON_GROUP;
+            global_.daemon.http_host = "0.0.0.0";
             global_.daemon.max_connections = constants::config_defaults::DAEMON_MAX_CONNECTIONS_SYSTEM;
             global_.daemon.max_queue = constants::config_defaults::DAEMON_MAX_QUEUE_SYSTEM;
+        } else {
+            global_.base_path = path_manager.getDataDir();
+            global_.models_path = global_.base_path + "/models";
+            global_.daemon.socket_path = path_manager.getSocketPath();
+            
+            if (path_manager.isUserMode()) {
+                global_.log_file = path_manager.getLogDir() + "/semantics-av.log";
+                global_.daemon.http_host = constants::config_defaults::DAEMON_HTTP_HOST;
+                global_.daemon.user = "";
+                global_.daemon.group = "";
+                global_.daemon.max_connections = constants::config_defaults::DAEMON_MAX_CONNECTIONS_USER;
+                global_.daemon.max_queue = constants::config_defaults::DAEMON_MAX_QUEUE_USER;
+            } else {
+                global_.log_file = "/var/log/semantics-av/semantics-av.log";
+                global_.daemon.http_host = constants::config_defaults::DAEMON_HTTP_HOST;
+                global_.daemon.user = constants::system::DAEMON_USER;
+                global_.daemon.group = constants::system::DAEMON_GROUP;
+                global_.daemon.max_connections = constants::config_defaults::DAEMON_MAX_CONNECTIONS_SYSTEM;
+                global_.daemon.max_queue = constants::config_defaults::DAEMON_MAX_QUEUE_SYSTEM;
+            }
         }
         
         std::string effective_config_file = config_file;
-        if (effective_config_file.empty()) {
+        if (!in_container && effective_config_file.empty()) {
             auto best = findBestConfig();
             if (best) {
                 effective_config_file = *best;
@@ -171,26 +254,40 @@ bool Config::load(const std::string& config_file) {
         
         bool has_any_config = false;
         
-        if (global_.api_key.empty()) {
-            std::string user_credentials = path_manager.getUserCredentialsFile();
-            if (!user_credentials.empty() && tryLoadCredentials(user_credentials)) {
+        if (!in_container) {
+            if (global_.api_key.empty()) {
+                std::string user_credentials = path_manager.getUserCredentialsFile();
+                if (!user_credentials.empty() && tryLoadCredentials(user_credentials)) {
+                    has_any_config = true;
+                }
+            }
+            
+            if (global_.api_key.empty()) {
+                std::string system_secrets = path_manager.getSystemSecretsFile();
+                if (!system_secrets.empty() && tryLoadTomlFile(system_secrets, "system secrets")) {
+                    has_any_config = true;
+                }
+            }
+            
+            if (tryLoadTomlFile(effective_config_file, "main config")) {
                 has_any_config = true;
             }
         }
         
-        if (global_.api_key.empty()) {
-            std::string system_secrets = path_manager.getSystemSecretsFile();
-            if (!system_secrets.empty() && tryLoadTomlFile(system_secrets, "system secrets")) {
+        if (in_container) {
+            if (global_.api_key.empty() && tryLoadCredentials("/run/secrets/api-key")) {
+                has_any_config = true;
+            }
+            
+            if (global_.api_key.empty() && tryLoadTomlFile("/etc/semantics-av/secrets.conf", "mounted secrets")) {
                 has_any_config = true;
             }
         }
         
-        if (tryLoadTomlFile(effective_config_file, "main config")) {
-            has_any_config = true;
-        }
+        applyEnvironmentVariables(global_);
         
-        Logger::instance().info("[Config] Loaded | has_api_key={} | sources_loaded={}", 
-                               !global_.api_key.empty(), has_any_config);
+        Logger::instance().info("[Config] Loaded | container={} | has_api_key={} | sources_loaded={}", 
+                               in_container, !global_.api_key.empty(), has_any_config);
         
         if (!checkHealth()) {
             suggestFix();
@@ -221,32 +318,48 @@ bool Config::tryLoadCredentials(const std::string& path) {
             return false;
         }
         
-        std::string line;
-        while (std::getline(file, line)) {
-            if (line.empty() || line[0] == '#') continue;
+        std::string first_line;
+        if (!std::getline(file, first_line)) {
+            Logger::instance().debug("[Config] Credentials empty | path={}", path);
+            return false;
+        }
+        
+        while (!first_line.empty() && std::isspace(first_line.back())) {
+            first_line.pop_back();
+        }
+        while (!first_line.empty() && std::isspace(first_line.front())) {
+            first_line.erase(0, 1);
+        }
+        
+        if (first_line.empty() || first_line[0] == '#') {
+            Logger::instance().debug("[Config] Credentials invalid format | path={}", path);
+            return false;
+        }
+        
+        auto eq_pos = first_line.find('=');
+        if (eq_pos != std::string::npos) {
+            std::string key = first_line.substr(0, eq_pos);
+            std::string value = first_line.substr(eq_pos + 1);
             
-            auto eq_pos = line.find('=');
-            if (eq_pos != std::string::npos) {
-                std::string key = line.substr(0, eq_pos);
-                std::string value = line.substr(eq_pos + 1);
-                
-                while (!key.empty() && std::isspace(key.back())) key.pop_back();
-                while (!value.empty() && std::isspace(value.front())) value.erase(0, 1);
-                while (!value.empty() && std::isspace(value.back())) value.pop_back();
-                
-                if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
-                    value = value.substr(1, value.size() - 2);
-                }
-                
-                if (key == "api_key" || key == "SEMANTICS_AV_API_KEY") {
-                    global_.api_key = value;
-                }
+            while (!key.empty() && std::isspace(key.back())) key.pop_back();
+            while (!value.empty() && std::isspace(value.front())) value.erase(0, 1);
+            while (!value.empty() && std::isspace(value.back())) value.pop_back();
+            
+            if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+                value = value.substr(1, value.size() - 2);
             }
+            
+            if (key == "api_key" || key == "SEMANTICS_AV_API_KEY") {
+                global_.api_key = value;
+            }
+        } else {
+            global_.api_key = first_line;
         }
         
         Logger::instance().info("[Config] Credentials loaded | path={} | has_api_key={}", 
                                path, !global_.api_key.empty());
         return true;
+        
     } catch (const std::exception& e) {
         Logger::instance().debug("[Config] Credentials parse failed | path={} | error={}", 
                                 path, e.what());

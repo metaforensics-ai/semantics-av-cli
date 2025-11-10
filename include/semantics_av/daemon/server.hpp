@@ -67,6 +67,7 @@ private:
     bool createPidFile();
     void removePidFile();
     bool checkExistingDaemon();
+    void ensureModelsAvailable();
     
     void setupSignalHandlers();
     static void signalHandlerStatic(int signal);
@@ -77,6 +78,8 @@ private:
     void autoUpdateThreadMain();
     void reloadThreadMain();
     void acceptConnections();
+    
+    static bool isRunningInContainer();
 };
 
 }}

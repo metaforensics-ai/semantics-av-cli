@@ -3,6 +3,8 @@
 #include "types.hpp"
 #include <string>
 #include <filesystem>
+#include <sys/types.h>
+#include <unistd.h>
 
 namespace semantics_av {
 namespace common {
