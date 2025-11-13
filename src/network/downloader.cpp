@@ -94,6 +94,96 @@ public:
         progress_callback_ = std::move(callback);
     }
     
+    std::future<ModelMetadata> checkModelMetadataAsync(
+            const std::string& model_type,
+            const std::string& current_etag) {
+        
+        return std::async(std::launch::async, [this, model_type, current_etag]() {
+            ModelMetadata result;
+            result.file_type = model_type;
+            
+            try {
+                std::lock_guard<std::mutex> lock(mutex_);
+                
+                std::string uri_path = "/model-distribution/" + model_type + "/latest";
+                
+                httplib::Headers headers = {
+                    {"User-Agent", "SemanticsAV-CLI/1.0"}
+                };
+                
+                if (!current_etag.empty()) {
+                    headers.emplace("If-None-Match", "\"" + current_etag + "\"");
+                    common::Logger::instance().debug("[Metadata] Request | type={} | etag={}", 
+                                                     model_type, current_etag);
+                }
+                
+                httplib::Result response;
+                if (is_https_) {
+                    response = https_client_->Head(uri_path, headers);
+                } else {
+                    response = http_client_->Head(uri_path, headers);
+                }
+                
+                if (!response) {
+                    result.success = false;
+                    result.error_message = "Network error";
+                    common::Logger::instance().error("[Metadata] Network error | type={}", model_type);
+                    return result;
+                }
+                
+                if (response->status == 304) {
+                    result.success = true;
+                    result.is_newer = false;
+                    result.etag = current_etag;
+                    common::Logger::instance().debug("[Metadata] Not modified | type={}", model_type);
+                    return result;
+                }
+                
+                if (response->status != 200) {
+                    result.success = false;
+                    result.error_message = "HTTP " + std::to_string(response->status);
+                    common::Logger::instance().error("[Metadata] HTTP error | type={} | status={}", 
+                                                      model_type, response->status);
+                    return result;
+                }
+                
+                std::string etag;
+                if (response->has_header("ETag")) {
+                    etag = response->get_header_value("ETag");
+                    if (etag.front() == '"' && etag.back() == '"') {
+                        etag = etag.substr(1, etag.length() - 2);
+                    }
+                }
+                
+                int64_t server_timestamp = 0;
+                if (response->has_header("X-Model-Timestamp")) {
+                    try {
+                        server_timestamp = std::stoll(response->get_header_value("X-Model-Timestamp"));
+                    } catch (...) {
+                        server_timestamp = 0;
+                    }
+                }
+                
+                result.success = true;
+                result.etag = etag;
+                result.server_timestamp = server_timestamp;
+                result.is_newer = (etag != current_etag);
+                
+                common::Logger::instance().info("[Metadata] Success | type={} | etag={} | timestamp={} | newer={}", 
+                                               model_type, etag, server_timestamp, result.is_newer);
+                
+                return result;
+                
+            } catch (const std::exception& e) {
+                result.success = false;
+                result.error_message = e.what();
+                common::Logger::instance().error("[Metadata] Exception | type={} | error={}", 
+                                                  model_type, e.what());
+                return result;
+            }
+        });
+    }
+    
     std::future<std::vector<ModelDownloadResult>> downloadModelsAsync(
             const std::vector<std::string>& model_types,
             const std::map<std::string, std::string>& current_etags) {
@@ -374,6 +464,12 @@ std::future<ModelDownloadResult> ModelDownloader::downloadSingleModelAsync(
         const std::string& model_type,
         const std::string& current_etag) {
     return pimpl_->downloadSingleModelAsyncImpl(model_type, current_etag);
+}
+
+std::future<ModelMetadata> ModelDownloader::checkModelMetadataAsync(
+        const std::string& model_type,
+        const std::string& current_etag) {
+    return pimpl_->checkModelMetadataAsync(model_type, current_etag);
 }
 
 void ModelDownloader::updateConfig(int timeout_seconds) {

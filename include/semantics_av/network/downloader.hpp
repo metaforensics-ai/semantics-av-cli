@@ -18,6 +18,15 @@ struct ModelDownloadResult {
     std::string error_message;
 };
 
+struct ModelMetadata {
+    std::string file_type;
+    bool success = false;
+    std::string etag;
+    int64_t server_timestamp = 0;
+    bool is_newer = false;
+    std::string error_message;
+};
+
 using DownloadProgressCallback = std::function<void(
     const std::string& model_type,
     size_t current_bytes,
@@ -34,6 +43,10 @@ public:
         const std::map<std::string, std::string>& current_etags = {});
     
     std::future<ModelDownloadResult> downloadSingleModelAsync(
+        const std::string& model_type,
+        const std::string& current_etag = "");
+    
+    std::future<ModelMetadata> checkModelMetadataAsync(
         const std::string& model_type,
         const std::string& current_etag = "");
     

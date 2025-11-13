@@ -225,18 +225,46 @@ int UpdateCommand::executeDirect() {
         if (check_only_) {
             std::cout << "\nModel Status:\n";
             
-            for (const auto& type : model_types_) {
-                auto info = engine.getModelInfo(type);
+            auto summary = updater.updateModelsSync(options);
+            
+            for (const auto& ver_info : summary.version_info) {
+                std::string type_prefix = "  " + ver_info.model_type + ": ";
+                std::cout << type_prefix;
                 
-                std::cout << "  " << type << ": ";
-                
-                if (info.etag.empty()) {
-                    std::cout << "not installed\n";
-                } else {
-                    std::string timestamp_str = formatTimestamp(
-                        std::chrono::system_clock::to_time_t(info.last_updated));
-                    std::cout << timestamp_str << "\n";
+                if (!ver_info.has_local_version) {
+                    if (use_colors) {
+                        std::cout << "\033[33m";
+                    }
+                    std::cout << "not installed";
+                    if (use_colors) {
+                        std::cout << "\033[0m";
+                    }
+                    std::cout << "\n";
+                    continue;
                 }
+                
+                std::string local_ts = formatTimestamp(ver_info.current_timestamp);
+                std::string server_ts = formatTimestamp(ver_info.server_timestamp);
+                
+                if (ver_info.update_available) {
+                    if (use_colors) {
+                        std::cout << "\033[33m";
+                    }
+                    std::cout << local_ts << " → " << server_ts << " (update available)";
+                    if (use_colors) {
+                        std::cout << "\033[0m";
+                    }
+                } else {
+                    if (use_colors) {
+                        std::cout << "\033[32m";
+                    }
+                    std::cout << local_ts << " (up-to-date)";
+                    if (use_colors) {
+                        std::cout << "\033[0m";
+                    }
+                }
+                
+                std::cout << "\n";
             }
             
             std::cout << "\n";

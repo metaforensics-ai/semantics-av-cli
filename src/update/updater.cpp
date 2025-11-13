@@ -30,8 +30,52 @@ UpdateSummary ModelUpdater::updateModelsSync(const UpdateOptions& options) {
     
     summary.total_models = model_types.size();
     
-    common::Logger::instance().info("[Updater] Starting | models={} | force={}", 
-                                    summary.total_models, options.force_update);
+    common::Logger::instance().info("[Updater] Starting | models={} | check_only={} | force={}", 
+                                    summary.total_models, options.check_only, options.force_update);
+    
+    if (options.check_only) {
+        for (const auto& type : model_types) {
+            ModelVersionInfo version_info;
+            version_info.model_type = type;
+            
+            try {
+                auto local_info = engine_->getModelInfo(type);
+                
+                if (!local_info.etag.empty()) {
+                    version_info.has_local_version = true;
+                    version_info.current_timestamp = std::chrono::system_clock::to_time_t(
+                        local_info.server_created_at);
+                }
+                
+                auto metadata_future = downloader_->checkModelMetadataAsync(type, local_info.etag);
+                auto metadata = metadata_future.get();
+                
+                if (metadata.success) {
+                    version_info.server_timestamp = metadata.server_timestamp;
+                    version_info.update_available = metadata.is_newer;
+                    
+                    common::Logger::instance().debug("[Updater] Metadata check | type={} | local={} | server={} | update_available={}", 
+                                                     type, version_info.current_timestamp, 
+                                                     version_info.server_timestamp, version_info.update_available);
+                } else {
+                    common::Logger::instance().error("[Updater] Metadata check failed | type={} | error={}", 
+                                                      type, metadata.error_message);
+                }
+                
+            } catch (const std::exception& e) {
+                common::Logger::instance().error("[Updater] Exception during check | type={} | error={}", 
+                                                  type, e.what());
+            }
+            
+            summary.version_info.push_back(version_info);
+        }
+        
+        auto end_time = std::chrono::steady_clock::now();
+        summary.total_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+        
+        common::Logger::instance().info("[Updater] Check complete | duration_ms={}", summary.total_time.count());
+        return summary;
+    }
     
     std::map<std::string, std::string> current_etags;
     std::map<std::string, int64_t> current_timestamps;
