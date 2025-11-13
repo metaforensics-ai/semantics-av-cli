@@ -4,14 +4,13 @@
 [![Engine License](https://img.shields.io/badge/Engine-EULA-blue.svg)](EULA.md)
 [![Platform](https://img.shields.io/badge/Linux-x86__64%20|%20ARM64-orange.svg)]()
 
-> **Gateway to SemanticsAV Platform:**  
-> **CLI, daemon, and API servers for AI-native malware detection and threat intelligence.**
+> AI-native malware detection: CLI tools, daemon, and API interface for offline scanning and cloud intelligence
 
-**Offline Zero-Day Detection • Real-Time Cloud Intelligence • Privacy-by-Design**
+**Offline Detection • Cloud Intelligence • Privacy-by-Design**
 
 ---
 
-## 🚀 See It In Action
+## Quick Demo
 
 <p align="center">
   <img src="docs/demo.gif" alt="SemanticsAV Quick Start Demo" width="100%">
@@ -19,95 +18,22 @@
 
 ---
 
-## What Is SemanticsAV Platform?
+## What Is SemanticsAV?
 
-**SemanticsAV Platform delivers AI-native malware detection that analyzes what code *means*, not what it *looks like*.** By understanding semantic context and design intent—rather than matching syntactic patterns—it detects zero-day threats that evade traditional signature-based and sandbox approaches.
+SemanticsAV provides AI-native malware analysis through three components:
 
-**Currently, the platform consists of three core components:**
+| Component | Description |
+|-----------|-------------|
+| **SDK** | AI-native offline malware scanner. Detects threats locally without internet connection using learned pattern recognition instead of signature matching. |
+| **CLI** | Command-line interface, system daemon, and transparent network layer for all platform operations (this repository). |
+| **Intelligence** | Optional cloud service providing threat attribution, genetic positioning, and forensic context analysis. |
 
-| Component | What It Does |
-|-----------|--------------|
-| **SemanticsAV SDK** | On-device AI engine delivering instant malware detection without network dependency during scanning |
-| **SemanticsAV&nbsp;Intelligence** | Cloud API providing genetic positioning, attack attribution, and forensic context analysis |
-| **SemanticsAV CLI<br>(this repository)** | Gateway interface: CLI tools, daemon services, and transparent network layer |
+**Key Capabilities:**
 
-### Why It Matters
-
-**🧬 From Syntax to Semantics (Core Philosophy)**
-
-Traditional security tools analyze what code *looks like*—matching byte patterns, following expert-defined rules, or observing predefined behaviors. SemanticsAV fundamentally redefines detection by analyzing what code *means*.
-
-- **End-to-end AI learning** from file structures with zero human-defined rules or signatures
-- **Contextual pattern discovery** beyond human comprehension—not which API is called, but what appears together with what
-- **Eliminates predictable detection logic** that attackers can study and evade
-- **Transcends fundamental limitations** of both static signature matching and dynamic sandbox observation
-
-**🚀 On-Device Excellence (SemanticsAV SDK)**
-
-Ultra-lightweight AI engine delivering production-grade malware verdicts without any network dependency—same detection accuracy as cloud, optimized for instant response and air-gapped deployment.
-
-- **Blazing fast detection** with minimal memory footprint—enabling deployment at scale without infrastructure overhead
-- **Zero network dependency** during scanning—complete offline operation with no cloud requirements
-- **Continuous evolution** through periodic model updates adapting to emerging threat landscapes
-- **Free unlimited scanning** for all uses on Linux—personal, commercial services, and product integration
-
-**🌐 Optional Cloud Intelligence (SemanticsAV Intelligence)**
-
-Real-time cloud API transforming instant verdicts into actionable forensic intelligence—delivering comprehensive analysis in seconds.
-
-- **Real-time threat intelligence** responding in seconds—enabling immediate incident response unlike traditional sandboxes requiring extended observation
-- **Genetic neighborhood mapping** revealing where samples cluster in malware landscape—distinguishing isolated threats from campaign-linked variants
-- **Multi-family attribution** connecting samples to known signatures (RATs, infostealers, ransomware) through geometric similarity
-- **Attribute-level evidence** with visual comparison matrices proving polymorphism cannot hide fundamental design DNA
-- **Independent geometric verification** providing mathematical proof of positioning—validating verdicts or revealing critical alerts
-- **Actionable forensic reports** with natural language synthesis for executive summaries and response strategies
-
-**🔒 Privacy-by-Design (Transparent Architecture)**
-
-All network communication occurs through MIT-licensed open-source code you can audit—proving file originals never leave your system.
-
-- **File originals never transmitted**—SDK has zero network capability during scanning
-- **Minimal data extraction** transmitting only a proprietary analytical payload required for cloud analysis
-- **Deterministic processing** producing identical payloads for identical files across all environments—enabling indirect verification
-- **No file size restrictions** for cloud analysis with minimal network resource consumption
-- **Complete transparency** through auditable open-source wrapper code handling all network communication
-
-**⚡ Production Ready (SemanticsAV CLI)**
-
-Production-grade integration tools built for enterprise security workflows and automation pipelines.
-
-- **Daemon mode** with HTTP and Unix socket APIs for system-wide integration
-- **Multiple output formats** (JSON, HTML, Markdown) for automation and reporting
-- **Multi-threaded scanning** optimized for high-throughput environments
-- **CI/CD integration** ready for security orchestration and DevSecOps workflows
-
----
-
-## Supported File Formats
-
-**Currently Supported:**
-- **PE (Portable Executable)** — Windows executables (.exe, .dll, .sys)
-- **ELF (Executable and Linkable Format)** — Linux/Unix executables and shared objects
-
-**Expanding Coverage:**
-
-The platform is actively expanding to cover all file formats capable of carrying malicious payloads, prioritized by real-world threat landscape:
-
-- Document formats (Office, PDF, RTF)
-- Script languages (JavaScript, PowerShell, Python, bash)
-- Mobile executables (APK, IPA)
-- Specialized binary formats (Mach-O, Java bytecode, .NET assemblies)
-
----
-
-## Model Distribution
-
-Both Community and Commercial editions receive production-ready detection models.
-
-Differences may occur due to:
-- **Update timing**: Critical threats may receive priority commercial updates
-- **Confidential data**: Models trained on NDA-protected samples
-- **Specialized threats**: Industry-specific or deployment-specific requirements
+- **Offline Scanner**: Complete malware scanning without network dependency during analysis
+- **Novel Threat Detection**: AI-based detection identifies previously unseen malware variants without requiring signature updates
+- **Privacy-First**: SDK has zero network capability. All communication occurs through auditable open-source CLI
+- **Free on Linux**: Unlimited scanning for personal, commercial, and service provider use
 
 ---
 
@@ -115,23 +41,15 @@ Differences may occur due to:
 
 ### Installation
 
-Choose your installation type:
-
 **User Installation** (recommended for personal use):
 ```bash
 curl -sSL https://raw.githubusercontent.com/metaforensics-ai/semantics-av-cli/main/scripts/install.sh | bash -s -- --user
 ```
-- Installs to `~/.local`
-- No sudo required
-- Easy to uninstall
 
 **System Installation** (for server/multi-user environments):
 ```bash
 curl -sSL https://raw.githubusercontent.com/metaforensics-ai/semantics-av-cli/main/scripts/install.sh | bash -s -- --system
 ```
-- Installs to `/usr/local`
-- Requires sudo privileges
-- Runs as system service
 
 ### Initial Setup
 ```bash
@@ -145,26 +63,7 @@ semantics-av update
 semantics-av scan /path/to/file
 ```
 
-**Optional: Enable daemon for background services**
-```bash
-# System installation
-sudo systemctl start semantics-av
-sudo systemctl enable semantics-av
-
-# User installation
-systemctl --user start semantics-av
-systemctl --user enable semantics-av
-```
-
-**Why use daemon?** (Optional)
-- HTTP API for remote integration
-- Automatic model updates in background
-- System service integration
-- Always-on availability for instant responses
-
 ### Optional: Enable Cloud Intelligence
-
-For detailed forensic analysis and threat attribution:
 ```bash
 # Get your API key from: https://console.semanticsav.ai
 
@@ -177,7 +76,27 @@ semantics-av analyze suspicious.exe --format html -o report.html
 
 ---
 
-## System Requirements
+## Supported File Formats
+
+**Currently Supported:**
+- **PE (Portable Executable)**: Windows executables (.exe, .dll, .sys)
+- **ELF (Executable and Linkable Format)**: Linux/Unix executables and shared objects
+
+**Expanding Coverage:**
+
+The platform is actively expanding to cover document formats (Office, PDF), script languages (JavaScript, PowerShell, Python), mobile executables (APK, IPA), and specialized binary formats (Mach-O, Java bytecode, .NET assemblies).
+
+---
+
+## Model Distribution
+
+Both Community and Commercial editions receive production-ready detection models. Differences may occur due to update timing (critical threats may receive priority commercial updates), confidential data (models trained on NDA-protected samples), or specialized requirements (industry-specific deployments).
+
+---
+
+## Installation
+
+### System Requirements
 
 | Requirement | Specification |
 |------------|---------------|
@@ -191,8 +110,8 @@ semantics-av analyze suspicious.exe --format html -o report.html
 
 | Architecture | Minimum Requirements | Officially Supported On |
 |:-------------|:--------------------|:------------------------|
-| **x86_64** | `glibc >= 2.17`<br>`libstdc++ >= 3.4.19` (GCC 4.8.5) | RHEL/CentOS 7+, Ubuntu 16.04+, Debian 9+, etc. |
-| **aarch64 (ARM64)** | `glibc >= 2.27`<br>`libstdc++ >= 3.4.22` (GCC 6.1) | RHEL/AlmaLinux 8+, Ubuntu 18.04+, Debian 10+, etc. |
+| **x86_64** | `glibc >= 2.17`<br>`libstdc++ >= 3.4.19` (GCC 4.8.5) | RHEL/CentOS 7+, Ubuntu 16.04+, Debian 9+ |
+| **aarch64 (ARM64)** | `glibc >= 2.27`<br>`libstdc++ >= 3.4.22` (GCC 6.1) | RHEL/AlmaLinux 8+, Ubuntu 18.04+, Debian 10+ |
 
 **Verify your system compatibility:**
 ```bash
@@ -203,11 +122,7 @@ ldd --version
 strings /usr/lib64/libstdc++.so.6 | grep GLIBCXX  # or /usr/lib/x86_64-linux-gnu/libstdc++.so.6
 ```
 
----
-
-## Manual Installation (From Source)
-
-For advanced users who prefer manual control:
+### Manual Installation (From Source)
 ```bash
 # Clone repository
 git clone https://github.com/metaforensics-ai/semantics-av-cli.git
@@ -252,8 +167,8 @@ semantics-av config set scan.default_threads 8
 ```
 
 **Configuration locations:**
-- **System mode:** `/etc/semantics-av/semantics-av.conf`
-- **User mode:** `~/.config/semantics-av/config.conf`
+- System mode: `/etc/semantics-av/semantics-av.conf`
+- User mode: `~/.config/semantics-av/config.conf`
 
 ### API Key Configuration
 
@@ -352,8 +267,6 @@ systemctl --user start semantics-av
 systemctl --user stop semantics-av
 systemctl --user status semantics-av
 
-# Reload configuration
-semantics-av daemon reload
 ```
 
 ### HTTP API Integration
@@ -380,33 +293,22 @@ curl -X POST http://127.0.0.1:9216/api/v1/scan \
 ```
 
 **Additional endpoints:**
-- `POST /api/v1/analyze` - Cloud analysis
-- `POST /api/v1/models/update` - Update models
-- `GET /api/v1/status` - Daemon status
-- `GET /api/v1/health` - Health check
+- `POST /api/v1/analyze`: Cloud analysis
+- `POST /api/v1/models/update`: Update models
+- `GET /api/v1/status`: Daemon status
+- `GET /api/v1/health`: Health check
 
 ### Unix Socket Integration
 
 For high-performance local integration:
-- **System:** `/var/run/semantics-av/semantics-av.sock`
-- **User:** `~/.local/state/semantics-av/semantics-av.sock`
+- System: `/var/run/semantics-av/semantics-av.sock`
+- User: `~/.local/state/semantics-av/semantics-av.sock`
 
 Binary protocol with zero-copy file descriptor passing. Specification in `include/semantics_av/daemon/protocol.hpp`.
 
 ---
 
-## Maintenance
-
-### Uninstallation
-```bash
-curl -sSL https://raw.githubusercontent.com/metaforensics-ai/semantics-av-cli/main/scripts/uninstall.sh | bash
-```
-
-The uninstaller automatically detects installation type and optionally removes configuration/data files.
-
----
-
-## How It Works
+## Architecture
 
 SemanticsAV operates in two modes: offline malware detection and optional cloud intelligence.
 ```mermaid
@@ -437,32 +339,22 @@ sequenceDiagram
     end
 ```
 
-**Privacy-First Architecture**
+**Privacy-First Architecture:**
 
-**Offline Detection (Free)**  
-The SemanticsAV SDK performs complete AI-based malware analysis locally without any network dependency. Your files never leave your system during scanning—perfect for air-gapped environments and zero-trust architectures.
+The SemanticsAV SDK performs complete AI-based malware analysis locally without any network dependency. Your files never leave your system during scanning. When using the Intelligence API, only an encrypted, proprietary analysis payload is transmitted. The original file is never uploaded and cannot be reconstructed from the payload. All network communication occurs through the open-source CLI wrapper, enabling you to audit exactly what data is transmitted.
 
-**Cloud Intelligence (Optional)**  
-When using the Intelligence API, only an encrypted, proprietary analysis payload is transmitted—the original file is never uploaded and cannot be reconstructed from the payload. All network communication occurs through the open-source CLI wrapper, enabling you to audit exactly what data is transmitted.
-
-**Privacy Details:** See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for complete data handling practices and architectural transparency guarantees.
+See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for complete data handling practices.
 
 ---
 
-## Our Mission
+## Maintenance
 
-**We exist to democratize access to AI-powered threat detection and make advanced security capabilities foundational infrastructure for the open-source ecosystem.**
+### Uninstallation
+```bash
+curl -sSL https://raw.githubusercontent.com/metaforensics-ai/semantics-av-cli/main/scripts/uninstall.sh | bash
+```
 
-Traditional enterprise-grade malware detection remains locked behind commercial licensing, creating a security divide where well-funded organizations deploy sophisticated AI-driven defenses while open-source projects, security researchers, and Linux-native organizations rely on signature-based approaches decades behind the threat landscape.
-
-By making SemanticsAV freely available on Linux for all commercial uses, we enable:
-
-- **Linux distributions** to ship with zero-day detection capabilities built-in, not bolted-on
-- **Open-source security projects** to integrate semantic analysis without licensing barriers
-- **Security service providers** to deliver AI-powered protection to underserved markets
-- **Research communities** to advance defensive capabilities through unrestricted access to production-grade technology
-
-We believe security technology evolves fastest when foundational tools are accessible. Commercial licensing for cross-platform deployment and premium Intelligence services sustains continued innovation while keeping Linux deployments perpetually free—ensuring the open ecosystem that drives global infrastructure remains protected by the same advanced capabilities available to enterprise environments.
+The uninstaller automatically detects installation type and optionally removes configuration/data files.
 
 ---
 
@@ -470,7 +362,7 @@ We believe security technology evolves fastest when foundational tools are acces
 
 ### Linux SDK: Free for All Commercial Uses
 
-The **SemanticsAV SDK for Linux** is provided under a **perpetual, royalty-free EULA**. All commercial uses are permitted—including service delivery, product integration, and redistribution—subject only to the terms specified in the EULA (no reverse engineering, no competitive development, mandatory attribution).
+The **SemanticsAV SDK for Linux** is provided under a **perpetual, royalty-free EULA**. All commercial uses are permitted including service delivery, product integration, and redistribution, subject only to the terms specified in the EULA (no reverse engineering, no competitive development, mandatory attribution).
 
 **Full details:** [EULA.md](EULA.md)
 
@@ -478,7 +370,7 @@ The **SemanticsAV SDK for Linux** is provided under a **perpetual, royalty-free 
 
 | Component | License | Details |
 |-----------|---------|---------|
-| **SemanticsAV CLI** | [MIT](LICENSE.md) | Full rights—modify, distribute, commercial use |
+| **SemanticsAV CLI** | [MIT](LICENSE.md) | Full rights: modify, distribute, commercial use |
 | **SemanticsAV SDK (Linux)** | [EULA](EULA.md) | All commercial uses permitted under EULA terms |
 | **SemanticsAV Intelligence** | [Terms of Service](INTELLIGENCE_TOS.md) | Subscription service, separate terms |
 
@@ -486,10 +378,10 @@ The **SemanticsAV SDK for Linux** is provided under a **perpetual, royalty-free 
 
 Commercial licenses are available for:
 
-- **Cross-Platform Deployment** — Windows, macOS, and other non-Linux platforms
-- **Customized Advanced Features** — Tailored detection models and specialized deployments
-- **Commercial Intelligence Integration** — Services that redistribute Intelligence analysis to customers
-- **Enterprise Support** — Dedicated technical support, custom SLAs, professional services
+- **Cross-Platform Deployment**: Windows, macOS, and other non-Linux platforms
+- **Customized Advanced Features**: Tailored detection models and specialized deployments
+- **Commercial Intelligence Integration**: Services that redistribute Intelligence analysis to customers
+- **Enterprise Support**: Dedicated technical support, custom SLAs, professional services
 
 **Licensing inquiries:** sales@metaforensics.ai
 
