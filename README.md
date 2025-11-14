@@ -26,12 +26,13 @@ SemanticsAV provides AI-native malware analysis through three components:
 |-----------|-------------|
 | **SDK** | AI-native offline malware scanner. Detects threats locally without internet connection using learned pattern recognition instead of signature matching. |
 | **CLI** | Command-line interface, system daemon, and transparent network layer for all platform operations (this repository). |
-| **Intelligence** | Optional cloud service providing threat attribution, genetic positioning, and forensic context analysis. |
+| **Intelligence** | Optional explainable AI layer that reveals *why* verdicts occur through campaign mapping and threat context. **[Try demo →](https://demo.semanticsav.ai)** |
 
 **Key Capabilities:**
 
 - **Offline Scanner**: Complete malware scanning without network dependency during analysis
 - **Novel Threat Detection**: AI-based detection identifies previously unseen malware variants without requiring signature updates
+- **Explainable Verdicts**: Understand verdict reasoning with attack campaign identification and threat vector analysis
 - **Privacy-First**: SDK has zero network capability. All communication occurs through auditable open-source CLI
 - **Free on Linux**: Unlimited scanning for personal, commercial, and service provider use
 
