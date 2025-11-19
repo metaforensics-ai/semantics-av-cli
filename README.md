@@ -2,9 +2,12 @@
 
 [![Wrapper License](https://img.shields.io/badge/Wrapper-MIT-green.svg)](LICENSE)
 [![Engine License](https://img.shields.io/badge/Engine-EULA-blue.svg)](EULA.md)
+[![Blog Post](https://img.shields.io/badge/Read_Blog_Post-Hashnode-2962FF?logo=hashnode&logoColor=white)](https://semanticsav.hashnode.dev/)
 [![Platform](https://img.shields.io/badge/Linux-x86__64%20|%20ARM64-orange.svg)]()
 
-> AI-native malware detection: CLI tools, daemon, and API interface for offline scanning and cloud intelligence
+> **Free, Offline, AI-Native Malware Scanner for Linux (PE/ELF)**
+>
+> Detects evasive threats using structural logic instead of signatures. No network required for scanning.
 
 **Offline Detection • Cloud Intelligence • Privacy-by-Design**
 
@@ -20,7 +23,14 @@
 
 ## What Is SemanticsAV?
 
-SemanticsAV provides AI-native malware analysis through three components:
+SemanticsAV is an AI-native antivirus engine designed to solve the limitations of traditional signature-based detection. While legacy tools rely on static fingerprint matching—which is reactive and easily bypassed by packing—SemanticsAV analyzes the **invariant structural patterns** of the binary. This allows it to detect evasive and polymorphic threats based on their architectural intent, not just their hash.
+
+> **Benchmark: SemanticsAV vs. ClamAV**
+>
+> We tested our engine against ClamAV on unseen future malware.
+> [**Read the full report on Hashnode**](https://semanticsav.hashnode.dev/)
+
+SemanticsAV provides analysis through three components:
 
 | Component | Description |
 |-----------|-------------|
@@ -30,11 +40,11 @@ SemanticsAV provides AI-native malware analysis through three components:
 
 **Key Capabilities:**
 
-- **Offline Scanner**: Complete malware scanning without network dependency during analysis
-- **Novel Threat Detection**: AI-based detection identifies previously unseen malware variants without requiring signature updates
-- **Explainable Verdicts**: Understand verdict reasoning with attack campaign identification and threat vector analysis
-- **Privacy-First**: SDK has zero network capability. All communication occurs through auditable open-source CLI
-- **Free on Linux**: Unlimited scanning for personal, commercial, and service provider use
+- **Offline Scanner**: Complete malware scanning without network dependency during analysis (Zero-Network Runtime).
+- **Constant Scan Speed**: No performance degradation as threat coverage grows.
+- **Explainable Verdicts**: Understand verdict reasoning with attack campaign identification and threat vector analysis.
+- **Privacy-First**: SDK has zero network capability. All communication occurs through auditable open-source CLI.
+- **Free on Linux**: Unlimited scanning for personal, commercial, and service provider use.
 
 ---
 
@@ -84,18 +94,51 @@ semantics-av analyze suspicious.exe --format html -o report.html
 - **ELF (Executable and Linkable Format)**: Linux/Unix executables and shared objects
 
 **Expanding Coverage:**
-
-The platform is actively expanding to cover document formats (Office, PDF), script languages (JavaScript, PowerShell, Python), mobile executables (APK, IPA), and specialized binary formats (Mach-O, Java bytecode, .NET assemblies).
-
----
-
-## Model Distribution
-
-Both Community and Commercial editions receive production-ready detection models. Differences may occur due to update timing (critical threats may receive priority commercial updates), confidential data (models trained on NDA-protected samples), or specialized requirements (industry-specific deployments).
+We are actively expanding the engine to cover document formats (Office, PDF), script languages (JavaScript, PowerShell, Python), and mobile executables (APK, IPA), aiming to secure all vectors of malicious execution.
 
 ---
 
-## Installation
+## Architecture & Privacy
+
+SemanticsAV operates in two modes: **offline malware detection** and **optional cloud intelligence**.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI as CLI<br/>(Open Source)
+    participant SDK as SDK<br/>(Engine)
+    participant Cloud as Intelligence<br/>(Cloud API)
+    
+    rect rgb(240, 250, 240)
+        Note right of User: Offline Detection<br/>(Free, No Network)
+        User->>CLI: scan file.exe
+        CLI->>SDK: Scan
+        SDK-->>CLI: MALICIOUS (98.3%)
+        CLI-->>User: Instant verdict
+    end
+    
+    rect rgb(240, 245, 255)
+        Note right of User: Cloud Intelligence<br/>(Requires API Key)
+        User->>CLI: analyze file.exe
+        CLI->>SDK: Extract Analysis Payload
+        Note over SDK: Privacy guarantee:<br/>Encrypted payload only<br/>Original file never transmitted
+        SDK-->>CLI: Encrypted analysis payload
+        Note over CLI: Open-source transparency:<br/>Audit network communication
+        CLI->>Cloud: POST /analyze
+        Cloud-->>CLI: Intelligence report
+        CLI-->>User: Context + Attribution
+    end
+```
+
+**Privacy-First Architecture:**
+
+The SemanticsAV SDK performs complete AI-based malware analysis locally without any network dependency. Your files never leave your system during scanning. When using the Intelligence API, only an encrypted, proprietary analysis payload is transmitted. The original file is never uploaded and cannot be reconstructed from the payload. All network communication occurs through the open-source CLI wrapper, enabling you to audit exactly what data is transmitted.
+
+See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for complete data handling practices.
+
+---
+
+## Installation Details
 
 ### System Requirements
 
@@ -306,45 +349,6 @@ For high-performance local integration:
 - User: `~/.local/state/semantics-av/semantics-av.sock`
 
 Binary protocol with zero-copy file descriptor passing. Specification in `include/semantics_av/daemon/protocol.hpp`.
-
----
-
-## Architecture
-
-SemanticsAV operates in two modes: offline malware detection and optional cloud intelligence.
-```mermaid
-sequenceDiagram
-    participant User
-    participant CLI as CLI<br/>(Open Source)
-    participant SDK as SDK<br/>(Engine)
-    participant Cloud as Intelligence<br/>(Cloud API)
-    
-    rect rgb(240, 250, 240)
-        Note right of User: Offline Detection<br/>(Free, No Network)
-        User->>CLI: scan file.exe
-        CLI->>SDK: Scan
-        SDK-->>CLI: MALICIOUS (98.3%)
-        CLI-->>User: Instant verdict
-    end
-    
-    rect rgb(240, 245, 255)
-        Note right of User: Cloud Intelligence<br/>(Requires API Key)
-        User->>CLI: analyze file.exe
-        CLI->>SDK: Extract Analysis Payload
-        Note over SDK: Privacy guarantee:<br/>Encrypted payload only<br/>Original file never transmitted
-        SDK-->>CLI: Encrypted analysis payload
-        Note over CLI: Open-source transparency:<br/>Audit network communication
-        CLI->>Cloud: POST /analyze
-        Cloud-->>CLI: Intelligence report
-        CLI-->>User: Context + Attribution
-    end
-```
-
-**Privacy-First Architecture:**
-
-The SemanticsAV SDK performs complete AI-based malware analysis locally without any network dependency. Your files never leave your system during scanning. When using the Intelligence API, only an encrypted, proprietary analysis payload is transmitted. The original file is never uploaded and cannot be reconstructed from the payload. All network communication occurs through the open-source CLI wrapper, enabling you to audit exactly what data is transmitted.
-
-See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for complete data handling practices.
 
 ---
 
