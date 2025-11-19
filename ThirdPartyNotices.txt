@@ -78,6 +78,13 @@ The SemanticsAV CLI is the official open-source (MIT-licensed) interface to the 
     Description: Markdown parser library
     License File: licenses/md4c/LICENSE.md
 
+11. libarchive - 3.8.2
+    Copyright: Copyright (c) 2003-2024 Tim Kientzle and libarchive contributors
+    License: BSD 2-Clause License
+    Source: https://github.com/libarchive/libarchive
+    Description: Multi-format archive and compression library
+    License File: licenses/libarchive/COPYING
+
 ================================================================================================
 SEMANTICSAV SDK DEPENDENCIES
 ================================================================================================

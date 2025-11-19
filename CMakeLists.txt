@@ -160,6 +160,7 @@ target_link_libraries(semantics-av PRIVATE
     nlohmann_json::nlohmann_json
     toml11::toml11
     TBB::tbb
+    archive_static
     OpenSSL::SSL
     OpenSSL::Crypto
     Threads::Threads

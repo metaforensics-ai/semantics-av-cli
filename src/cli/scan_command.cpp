@@ -158,6 +158,34 @@ int ScanCommand::scanFileWithDaemon(const std::filesystem::path& file_path) {
         return 1;
     }
     
+    if (response->is_archive) {
+        for (size_t i = 0; i < response->archive_results.size(); ++i) {
+            const auto& result = response->archive_results[i];
+            
+            if (shouldPrintResult(result)) {
+                printScanResultLine(
+                    result.file_path,
+                    result.result,
+                    result.confidence,
+                    result.file_type,
+                    result.file_size,
+                    result.scan_time.count(),
+                    i + 1,
+                    response->archive_results.size()
+                );
+            }
+        }
+        
+        auto summary = buildArchiveSummary(*response);
+        
+        scan::OutputFormat format = json_output_ ? scan::OutputFormat::JSON : scan::OutputFormat::TEXT;
+        scan::ResultFormatter formatter(format);
+        formatter.setColorsEnabled(!quiet_ && isatty(STDOUT_FILENO));
+        formatter.formatScanSummary(summary, std::cout);
+        
+        return (response->result == common::ScanResult::MALICIOUS) ? 1 : 0;
+    }
+    
     common::ScanMetadata metadata;
     metadata.file_path = file_path.string();
     metadata.result = response->result;
@@ -174,12 +202,14 @@ int ScanCommand::scanFileWithDaemon(const std::filesystem::path& file_path) {
             scan::ResultFormatter formatter(scan::OutputFormat::JSON);
             formatter.formatScanResult(metadata, std::cout);
         } else {
-            printScanResultLine(file_path.string(), 
-                              response->result, 
-                              response->confidence,
-                              response->file_type,
-                              response->file_size,
-                              response->scan_time_ms);
+            printScanResultLine(
+                file_path.string(),
+                response->result,
+                response->confidence,
+                response->file_type,
+                response->file_size,
+                response->scan_time_ms
+            );
         }
     }
     
@@ -217,6 +247,13 @@ int ScanCommand::scanDirectoryWithDaemon(const std::filesystem::path& directory)
     
     scan::ScanSummary summary;
     auto files = collectFilesForDaemon(directory, options, summary);
+    
+    size_t client_unsupported = summary.unsupported_files;
+    size_t client_permission_denied = summary.permission_denied_files;
+    size_t client_size_exceeded = summary.size_exceeded_files;
+    size_t client_depth_exceeded = summary.depth_exceeded_files;
+    size_t client_empty = summary.empty_files;
+    size_t client_excluded = summary.excluded_by_pattern;
     
     if (files.empty()) {
         if (summary.permission_denied_files > 0) {
@@ -281,8 +318,13 @@ int ScanCommand::scanDirectoryWithDaemon(const std::filesystem::path& directory)
     summary.total_files = response->total_files;
     summary.clean_files = response->clean_files;
     summary.malicious_files = response->malicious_files;
-    summary.unsupported_files = response->unsupported_files;
     summary.error_files = response->error_files;
+    summary.unsupported_files = response->unsupported_files + client_unsupported + response->client_open_failures;
+    summary.permission_denied_files = client_permission_denied;
+    summary.size_exceeded_files = client_size_exceeded;
+    summary.depth_exceeded_files = client_depth_exceeded;
+    summary.empty_files = client_empty;
+    summary.excluded_by_pattern = client_excluded;
     summary.total_time = std::chrono::milliseconds(response->total_time_ms);
     summary.results = response->results;
     
@@ -317,6 +359,7 @@ bool ScanCommand::shouldScanFile(const std::filesystem::path& file_path,
     }
     
     if (file_size == 0) {
+        summary.empty_files++;
         return false;
     }
     
@@ -326,6 +369,7 @@ bool ScanCommand::shouldScanFile(const std::filesystem::path& file_path,
     }
     
     if (matchesExcludePattern(file_path, options.exclude_patterns)) {
+        summary.excluded_by_pattern++;
         return false;
     }
     
@@ -434,22 +478,58 @@ int ScanCommand::executeStandalone(const std::filesystem::path& path) {
     formatter.setColorsEnabled(!quiet_ && isatty(STDOUT_FILENO));
     
     if (std::filesystem::is_regular_file(path)) {
-        auto result = scanner.scan(path, include_hashes_);
-        
-        if (shouldPrintResult(result)) {
-            if (json_output_) {
-                formatter.formatScanResult(result, std::cout);
-            } else {
-                printScanResultLine(path.string(),
-                                  result.result,
-                                  result.confidence,
-                                  result.file_type,
-                                  result.file_size,
-                                  result.scan_time.count());
+        if (scanner.isArchive(path)) {
+            common::Logger::instance().info("[CLI] Archive detected | path={}", 
+                                           path.string());
+            
+            scan::ScanOptions options;
+            options.recursive = false;
+            options.max_file_size = max_file_size_ * 1024 * 1024;
+            options.include_hashes = include_hashes_;
+            options.scan_archives = config.archive.scan_archives;
+            options.max_archive_extracted_size = config.archive.max_extracted_size_mb * 1024 * 1024;
+            options.max_archive_file_count = config.archive.max_file_count;
+            options.max_archive_recursion_depth = config.archive.max_recursion_depth;
+            options.max_compression_ratio = config.archive.max_compression_ratio;
+            
+            auto summary = scanner.scanArchive(path, options);
+            
+            for (size_t i = 0; i < summary.results.size(); ++i) {
+                const auto& result = summary.results[i];
+                if (shouldPrintResult(result)) {
+                    printScanResultLine(result.file_path,
+                                      result.result,
+                                      result.confidence,
+                                      result.file_type,
+                                      result.file_size,
+                                      result.scan_time.count(),
+                                      i + 1,
+                                      summary.results.size());
+                }
             }
+            
+            clearProgress();
+            formatter.formatScanSummary(summary, std::cout);
+            
+            return (summary.malicious_files > 0) ? 1 : 0;
+        } else {
+            auto result = scanner.scan(path, include_hashes_);
+            
+            if (shouldPrintResult(result)) {
+                if (json_output_) {
+                    formatter.formatScanResult(result, std::cout);
+                } else {
+                    printScanResultLine(path.string(),
+                                      result.result,
+                                      result.confidence,
+                                      result.file_type,
+                                      result.file_size,
+                                      result.scan_time.count());
+                }
+            }
+            
+            return (result.result == common::ScanResult::MALICIOUS) ? 1 : 0;
         }
-        
-        return (result.result == common::ScanResult::MALICIOUS) ? 1 : 0;
     }
     
     scan::ScanOptions options;
@@ -460,6 +540,11 @@ int ScanCommand::executeStandalone(const std::filesystem::path& path) {
     options.max_recursion_depth = config.max_recursion_depth;
     options.show_progress = false;
     options.include_hashes = include_hashes_;
+    options.scan_archives = config.archive.scan_archives;
+    options.max_archive_extracted_size = config.archive.max_extracted_size_mb * 1024 * 1024;
+    options.max_archive_file_count = config.archive.max_file_count;
+    options.max_archive_recursion_depth = config.archive.max_recursion_depth;
+    options.max_compression_ratio = config.archive.max_compression_ratio;
     
     std::cout.setf(std::ios::unitbuf);
     
@@ -641,6 +726,26 @@ std::string ScanCommand::getResultColor(common::ScanResult result) const {
         default:
             return "";
     }
+}
+
+scan::ScanSummary ScanCommand::buildArchiveSummary(
+    const daemon::ScanResponse& response) const 
+{
+    scan::ScanSummary summary;
+    
+    summary.total_files_found = response.archive_total_files;
+    summary.total_files = response.archive_total_files;
+    summary.clean_files = response.archive_clean_files;
+    summary.malicious_files = response.archive_malicious_files;
+    summary.unsupported_files = response.archive_unsupported_files;
+    summary.error_files = response.archive_error_files;
+    summary.encrypted_files = response.archive_encrypted_files;
+    
+    summary.total_time = std::chrono::milliseconds(response.scan_time_ms);
+    
+    summary.results = response.archive_results;
+    
+    return summary;
 }
 
 }}

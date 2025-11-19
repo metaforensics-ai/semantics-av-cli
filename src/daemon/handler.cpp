@@ -1,4 +1,5 @@
 #include "semantics_av/daemon/handler.hpp"
+#include "semantics_av/scan/scanner.hpp"
 #include "semantics_av/core/error_codes.hpp"
 #include "semantics_av/common/error_framework.hpp"
 #include "semantics_av/common/logger.hpp"
@@ -20,6 +21,32 @@
 
 namespace semantics_av {
 namespace daemon {
+
+namespace {
+
+std::vector<uint8_t> readFdToMemory(int fd, size_t max_size) {
+    struct stat st;
+    if (fstat(fd, &st) != 0) {
+        return {};
+    }
+    
+    size_t size = std::min(static_cast<size_t>(st.st_size), max_size);
+    std::vector<uint8_t> data(size);
+    
+    off_t current_pos = lseek(fd, 0, SEEK_CUR);
+    lseek(fd, 0, SEEK_SET);
+    ssize_t bytes_read = read(fd, data.data(), size);
+    lseek(fd, current_pos, SEEK_SET);
+    
+    if (bytes_read < 0) {
+        return {};
+    }
+    
+    data.resize(bytes_read);
+    return data;
+}
+
+}
 
 RequestHandler::RequestHandler(core::SemanticsAVEngine* engine, const std::string& api_key) 
     : engine_(engine), api_key_(api_key) {
@@ -272,6 +299,126 @@ void RequestHandler::handleConnection(std::shared_ptr<Connection> conn) {
     common::Logger::instance().debug("[Connection] Closed | source={}", conn->getRemoteAddress());
 }
 
+void RequestHandler::handleScanFdRequest(Connection* conn, const ScanRequest& request, int fd) {
+    auto start_time = std::chrono::steady_clock::now();
+    
+    struct stat file_stat;
+    size_t file_size = 0;
+    if (fstat(fd, &file_stat) == 0) {
+        file_size = file_stat.st_size;
+    }
+    
+    off_t current_pos = lseek(fd, 0, SEEK_CUR);
+    lseek(fd, 0, SEEK_SET);
+    std::vector<uint8_t> data(file_size);
+    ssize_t bytes_read = read(fd, data.data(), file_size);
+    lseek(fd, current_pos, SEEK_SET);
+    
+    if (bytes_read < 0) {
+        common::Logger::instance().error("[Scan] Read failed | path={}", request.file_path);
+        sendErrorResponse(conn, "Failed to read file descriptor");
+        return;
+    }
+    
+    data.resize(bytes_read);
+    
+    scan::Scanner scanner(engine_);
+    
+    if (scanner.isArchive(data)) {
+        common::Logger::instance().info("[Archive] Detected via fd | path={}", request.file_path);
+        
+        scanner.setResultCallback([this, conn](
+            const common::ScanMetadata& result,
+            size_t current,
+            size_t total) {
+            
+            ScanFileComplete file_complete;
+            file_complete.file_path = result.file_path;
+            file_complete.result = result.result;
+            file_complete.confidence = result.confidence;
+            file_complete.file_type = result.file_type;
+            file_complete.file_size = result.file_size;
+            file_complete.scan_time_ms = result.scan_time.count();
+            file_complete.current_file = current;
+            file_complete.total_files = total;
+            
+            if (result.error_message) {
+                file_complete.error_message = *result.error_message;
+            }
+            if (result.file_hashes && !result.file_hashes->empty()) {
+                file_complete.file_hashes = *result.file_hashes;
+            }
+            
+            auto data = protocol_->serializeScanFileComplete(file_complete);
+            conn->writeMessage(MessageType::SCAN_FILE_COMPLETE, 0, data);
+        });
+        
+        scan::ScanOptions options;
+        options.include_hashes = request.include_hashes;
+        
+        auto& config = common::Config::instance().global();
+        options.scan_archives = config.archive.scan_archives;
+        options.max_archive_extracted_size = config.archive.max_extracted_size_mb * 1024 * 1024;
+        options.max_archive_file_count = config.archive.max_file_count;
+        options.max_archive_recursion_depth = config.archive.max_recursion_depth;
+        options.max_compression_ratio = config.archive.max_compression_ratio;
+        
+        auto summary = scanner.scanArchive(data, request.file_path, file_size, options);
+        
+        auto verdict = scan::calculateArchiveVerdict(summary.results);
+        
+        ScanDirectoryResponse dir_response;
+        dir_response.total_files = summary.total_files;
+        dir_response.clean_files = summary.clean_files;
+        dir_response.malicious_files = summary.malicious_files;
+        dir_response.unsupported_files = summary.unsupported_files;
+        dir_response.error_files = summary.error_files;
+        dir_response.total_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start_time).count();
+        dir_response.results = summary.results;
+        
+        dir_response.source_file_path = request.file_path;
+        dir_response.source_file_size = file_size;
+        dir_response.aggregated_result = verdict.result;
+        dir_response.aggregated_confidence = verdict.confidence;
+        
+        sendScanDirectoryResponse(conn, dir_response);
+        
+        common::Logger::instance().info(
+            "[Archive] Scan complete | path={} | verdict={} | confidence={:.1f} | total={} | malicious={}",
+            request.file_path, common::to_string(verdict.result), 
+            verdict.confidence * 100, summary.total_files, summary.malicious_files);
+        
+        return;
+    }
+    
+    auto result = engine_->scan(data, request.include_hashes);
+    result.file_path = request.file_path;
+    
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start_time
+    );
+    result.scan_time = duration;
+    
+    if (result.error_code) {
+        common::ErrorContext ctx;
+        if (result.error_context) {
+            ctx = *result.error_context;
+        }
+        ctx.details["file"] = request.file_path;
+        
+        common::Logger::instance().info("[Scan] Complete with error | code={} | {}", 
+                                       core::CoreErrorCodeHelper::toString(*result.error_code),
+                                       common::formatContext(ctx));
+    } else {
+        common::Logger::instance().info("[Scan] Complete | file={} | result={} | confidence={:.1f} | size={} | duration_ms={}", 
+                                        request.file_path, common::to_string(result.result), 
+                                        result.confidence * 100, result.file_size, duration.count());
+    }
+    
+    sendScanResponse(conn, result);
+}
+
 void RequestHandler::handleListReportsRequest(Connection* conn, const ListReportsRequest& request) {
     common::Logger::instance().debug("[Report] List request | limit={}", request.limit);
     
@@ -375,6 +522,7 @@ void RequestHandler::handleScanDirectoryInit(Connection* conn, const ScanDirecto
     session->max_threads = init.max_threads;
     session->infected_only = init.infected_only;
     session->verbose = init.verbose;
+    session->include_hashes = init.include_hashes;
     session->start_time = std::chrono::steady_clock::now();
     
     {
@@ -465,6 +613,11 @@ void RequestHandler::handleScanBatchFds(Connection* conn, const ScanBatchFds& ba
     std::atomic<size_t> files_processed{0};
     size_t batch_start_index = session->scanned_files.load();
     
+    auto& config = common::Config::instance().global();
+    size_t max_size = config.max_scan_size_mb * 1024 * 1024;
+    
+    scan::Scanner scanner(engine_);
+    
     tbb::task_arena arena(session->max_threads);
     arena.execute([&] {
         tbb::parallel_for(size_t(0), fds.size(), [&](size_t i) {
@@ -472,34 +625,58 @@ void RequestHandler::handleScanBatchFds(Connection* conn, const ScanBatchFds& ba
             result.file_path = batch.file_paths[i];
             
             try {
-                auto scan_result = engine_->scanFromFd(fds[i], true);
+                auto data = readFdToMemory(fds[i], max_size);
                 
-                result.result = scan_result.result;
-                result.confidence = scan_result.confidence;
-                result.file_type = scan_result.file_type;
-                result.file_size = scan_result.file_size;
-                result.scan_time_ms = scan_result.scan_time.count();
-                
-                if (scan_result.error_message) {
-                    result.error_message = *scan_result.error_message;
-                }
-                
-                if (scan_result.error_code) {
-                    common::ErrorContext ctx;
-                    if (scan_result.error_context) {
-                        ctx = *scan_result.error_context;
-                    }
-                    ctx.details["file"] = result.file_path;
-                    ctx.details["error_code"] = core::CoreErrorCodeHelper::toString(*scan_result.error_code);
+                if (data.empty()) {
+                    result.result = common::ScanResult::ERROR;
+                    result.error_message = "Failed to read file descriptor";
+                    result.scan_time_ms = 0;
+                } else if (scanner.isArchive(data)) {
+                    scan::ScanOptions options;
+                    options.include_hashes = session->include_hashes;
                     
-                    if (session->verbose) {
-                        common::Logger::instance().debug("[Scan] Error detail | {}", 
-                                                        common::formatContext(ctx));
+                    options.scan_archives = config.archive.scan_archives;
+                    options.max_archive_extracted_size = config.archive.max_extracted_size_mb * 1024 * 1024;
+                    options.max_archive_file_count = config.archive.max_file_count;
+                    options.max_archive_recursion_depth = config.archive.max_recursion_depth;
+                    options.max_compression_ratio = config.archive.max_compression_ratio;
+                    
+                    struct stat file_stat;
+                    size_t file_size = 0;
+                    if (fstat(fds[i], &file_stat) == 0) {
+                        file_size = file_stat.st_size;
                     }
-                }
-                
-                if (scan_result.file_hashes && !scan_result.file_hashes->empty()) {
-                    result.file_hashes = *scan_result.file_hashes;
+                    
+                    auto archive_summary = scanner.scanArchive(
+                        data,
+                        batch.file_paths[i],
+                        file_size,
+                        options
+                    );
+                    
+                    auto verdict = scan::calculateArchiveVerdict(archive_summary.results);
+                    
+                    result.result = verdict.result;
+                    result.confidence = verdict.confidence;
+                    result.file_type = "archive";
+                    result.file_size = data.size();
+                    result.scan_time_ms = archive_summary.total_time.count();
+                } else {
+                    auto scan_result = engine_->scan(data, session->include_hashes);
+                    
+                    result.result = scan_result.result;
+                    result.confidence = scan_result.confidence;
+                    result.file_type = scan_result.file_type;
+                    result.file_size = scan_result.file_size;
+                    result.scan_time_ms = scan_result.scan_time.count();
+                    
+                    if (scan_result.error_message) {
+                        result.error_message = *scan_result.error_message;
+                    }
+                    
+                    if (scan_result.file_hashes && !scan_result.file_hashes->empty()) {
+                        result.file_hashes = *scan_result.file_hashes;
+                    }
                 }
                 
             } catch (const std::exception& e) {
@@ -570,36 +747,6 @@ void RequestHandler::handleScanDirectoryComplete(Connection* conn) {
         std::lock_guard<std::mutex> lock(sessions_mutex_);
         connection_sessions_.erase(conn);
     }
-}
-
-void RequestHandler::handleScanFdRequest(Connection* conn, const ScanRequest& request, int fd) {
-    auto start_time = std::chrono::steady_clock::now();
-    
-    auto result = engine_->scanFromFd(fd, request.include_hashes);
-    result.file_path = request.file_path;
-    
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - start_time
-    );
-    result.scan_time = duration;
-    
-    if (result.error_code) {
-        common::ErrorContext ctx;
-        if (result.error_context) {
-            ctx = *result.error_context;
-        }
-        ctx.details["file"] = request.file_path;
-        
-        common::Logger::instance().info("[Scan] Complete with error | code={} | {}", 
-                                       core::CoreErrorCodeHelper::toString(*result.error_code),
-                                       common::formatContext(ctx));
-    } else {
-        common::Logger::instance().info("[Scan] Complete | file={} | result={} | confidence={:.1f} | size={} | duration_ms={}", 
-                                        request.file_path, common::to_string(result.result), 
-                                        result.confidence * 100, result.file_size, duration.count());
-    }
-    
-    sendScanResponse(conn, result);
 }
 
 void RequestHandler::handleDeleteReportRequest(Connection* conn, const DeleteReportRequest& request) {

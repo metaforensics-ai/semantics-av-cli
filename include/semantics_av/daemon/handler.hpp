@@ -26,6 +26,7 @@ struct DirectoryScanSession {
     int max_threads = 4;
     bool infected_only = false;
     bool verbose = false;
+    bool include_hashes = false;
     
     std::atomic<size_t> scanned_files{0};
     ScanDirectoryResponse accumulated_results;

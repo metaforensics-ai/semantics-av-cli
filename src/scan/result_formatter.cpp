@@ -96,23 +96,30 @@ void ResultFormatter::formatTextSummary(const ScanSummary& summary, std::ostream
     out << "Total files found: " << summary.total_files_found << "\n";
     
     size_t analyzed_files = summary.clean_files + summary.malicious_files;
-    out << "Files analyzed: " << analyzed_files << "\n";
-    
-    if (summary.malicious_files > 0) {
-        out << "  - " << colorize("Malicious", "\033[31m") << ": " << summary.malicious_files << "\n";
+    if (analyzed_files > 0) {
+        out << "\nFiles analyzed: " << analyzed_files << "\n";
+        
+        if (summary.clean_files > 0) {
+            out << "  - " << colorize("Clean", "\033[32m") << ": " << summary.clean_files << "\n";
+        }
+        
+        if (summary.malicious_files > 0) {
+            out << "  - " << colorize("Malicious", "\033[31m") << ": " << summary.malicious_files << "\n";
+        }
     }
     
-    if (summary.clean_files > 0) {
-        out << "  - " << colorize("Clean", "\033[32m") << ": " << summary.clean_files << "\n";
-    }
+    size_t total_skipped = summary.error_files + summary.unsupported_files + 
+                          summary.permission_denied_files + summary.size_exceeded_files + 
+                          summary.empty_files + summary.excluded_by_pattern + 
+                          summary.depth_exceeded_files + summary.encrypted_files + 
+                          summary.compression_ratio_exceeded;
     
-    if (summary.error_files > 0) {
-        out << "Files with errors: " << summary.error_files << "\n";
-    }
-    
-    size_t total_skipped = summary.unsupported_files + summary.permission_denied_files + summary.size_exceeded_files;
     if (total_skipped > 0) {
-        out << "Files skipped:\n";
+        out << "\nFiles skipped: " << total_skipped << "\n";
+        
+        if (summary.error_files > 0) {
+            out << "  - Errors: " << summary.error_files << "\n";
+        }
         
         if (summary.unsupported_files > 0) {
             out << "  - Unsupported: " << summary.unsupported_files << "\n";
@@ -125,10 +132,30 @@ void ResultFormatter::formatTextSummary(const ScanSummary& summary, std::ostream
         if (summary.size_exceeded_files > 0) {
             out << "  - Size exceeded: " << summary.size_exceeded_files << "\n";
         }
+        
+        if (summary.empty_files > 0) {
+            out << "  - Empty files: " << summary.empty_files << "\n";
+        }
+        
+        if (summary.excluded_by_pattern > 0) {
+            out << "  - Excluded by pattern: " << summary.excluded_by_pattern << "\n";
+        }
+        
+        if (summary.depth_exceeded_files > 0) {
+            out << "  - Depth exceeded: " << summary.depth_exceeded_files << "\n";
+        }
+        
+        if (summary.encrypted_files > 0) {
+            out << "  - Encrypted: " << summary.encrypted_files << "\n";
+        }
+        
+        if (summary.compression_ratio_exceeded > 0) {
+            out << "  - Compression ratio exceeded: " << summary.compression_ratio_exceeded << "\n";
+        }
     }
     
     double total_seconds = summary.total_time.count() / 1000.0;
-    out << "Analysis time: " << std::fixed << std::setprecision(3) << total_seconds << " sec\n";
+    out << "\nAnalysis time: " << std::fixed << std::setprecision(3) << total_seconds << " sec\n";
     
     size_t total_bytes = 0;
     for (const auto& result : summary.results) {
@@ -149,6 +176,14 @@ void ResultFormatter::formatTextSummary(const ScanSummary& summary, std::ostream
     
     out << "Start time: " << format_time(start_time) << "\n";
     out << "End time:   " << format_time(end_time) << "\n";
+    
+    size_t accounted = analyzed_files + total_skipped;
+    if (accounted != summary.total_files_found) {
+        out << "\n" << colorize("[WARNING]", "\033[33m") << " Accounting error: "
+            << summary.total_files_found << " found, "
+            << accounted << " accounted (diff: "
+            << static_cast<int64_t>(summary.total_files_found) - static_cast<int64_t>(accounted) << ")\n";
+    }
 }
 
 void ResultFormatter::formatJsonSummary(const ScanSummary& summary, std::ostream& out) {
@@ -162,6 +197,12 @@ void ResultFormatter::formatJsonSummary(const ScanSummary& summary, std::ostream
     json["error_files"] = summary.error_files;
     json["permission_denied_files"] = summary.permission_denied_files;
     json["size_exceeded_files"] = summary.size_exceeded_files;
+    json["empty_files"] = summary.empty_files;
+    json["excluded_by_pattern"] = summary.excluded_by_pattern;
+    json["depth_exceeded_files"] = summary.depth_exceeded_files;
+    json["archive_errors"] = summary.archive_errors;
+    json["encrypted_files"] = summary.encrypted_files;
+    json["compression_ratio_exceeded"] = summary.compression_ratio_exceeded;
     json["total_time_ms"] = summary.total_time.count();
     
     if (verbose_) {

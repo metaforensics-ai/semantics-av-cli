@@ -248,6 +248,17 @@ std::vector<uint8_t> Protocol::serializeScanResponse(const ScanResponse& respons
         json["file_hashes"] = response.file_hashes;
     }
     
+    if (response.is_archive) {
+        json["is_archive"] = true;
+        json["archive_summary"]["total_files"] = response.archive_total_files;
+        json["archive_summary"]["malicious_files"] = response.archive_malicious_files;
+        json["archive_summary"]["clean_files"] = response.archive_clean_files;
+        json["archive_summary"]["unsupported_files"] = response.archive_unsupported_files;
+        json["archive_summary"]["error_files"] = response.archive_error_files;
+        json["archive_summary"]["encrypted_files"] = response.archive_encrypted_files;
+        json["archive_summary"]["infected_files"] = response.infected_files;
+    }
+    
     std::string json_str = json.dump();
     return std::vector<uint8_t>(json_str.begin(), json_str.end());
 }
@@ -310,6 +321,11 @@ std::vector<uint8_t> Protocol::serializeScanDirectoryResponse(const ScanDirector
     json["unsupported_files"] = response.unsupported_files;
     json["error_files"] = response.error_files;
     json["total_time_ms"] = response.total_time_ms;
+    
+    json["source_file_path"] = response.source_file_path;
+    json["source_file_size"] = response.source_file_size;
+    json["aggregated_result"] = common::to_string(response.aggregated_result);
+    json["aggregated_confidence"] = response.aggregated_confidence;
     
     nlohmann::json results_array = nlohmann::json::array();
     for (const auto& result : response.results) {

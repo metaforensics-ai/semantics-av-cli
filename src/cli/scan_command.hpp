@@ -73,6 +73,9 @@ private:
     
     std::string formatBytes(size_t bytes) const;
     std::string getResultColor(common::ScanResult result) const;
+    
+    scan::ScanSummary buildArchiveSummary(
+        const daemon::ScanResponse& response) const;
 };
 
 }}

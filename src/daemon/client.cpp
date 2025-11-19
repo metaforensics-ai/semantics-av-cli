@@ -37,6 +37,7 @@ struct PipelineState {
     std::atomic<size_t> files_received{0};
     std::atomic<bool> sending_complete{false};
     std::atomic<bool> error_occurred{false};
+    std::atomic<size_t> open_failures{0};
     
     const size_t total_files;
     const size_t MAX_IN_FLIGHT;
@@ -354,38 +355,211 @@ std::optional<ScanResponse> DaemonClient::scan(const std::string& file_path, boo
     
     close(fd);
     
-    auto response_data = receiveResponse(MessageType::SCAN_RESPONSE);
-    if (!response_data) {
+    auto first_response = pimpl_->receiveAnyResponse();
+    if (!first_response) {
         return std::nullopt;
     }
     
-    std::string json_str2(response_data->begin(), response_data->end());
-    auto json = nlohmann::json::parse(json_str2);
+    auto [msg_type, msg_data] = *first_response;
     
-    ScanResponse response;
-    
-    std::string result_str = json["result"];
-    if (result_str == "CLEAN") response.result = common::ScanResult::CLEAN;
-    else if (result_str == "MALICIOUS") response.result = common::ScanResult::MALICIOUS;
-    else if (result_str == "UNSUPPORTED") response.result = common::ScanResult::UNSUPPORTED;
-    else response.result = common::ScanResult::ERROR;
-    
-    response.confidence = json.value("confidence", 0.0f);
-    response.file_type = json.value("file_type", "");
-    response.file_size = json.value("file_size", 0);
-    response.scan_time_ms = json.value("scan_time_ms", 0);
-    response.scan_timestamp = json.value("scan_timestamp", "");
-    response.sdk_version = json.value("sdk_version", "");
-    response.model_version = json.value("model_version", "");
-    response.error_message = json.value("error", "");
-    
-    if (json.contains("file_hashes") && json["file_hashes"].is_object()) {
-        for (auto it = json["file_hashes"].begin(); it != json["file_hashes"].end(); ++it) {
-            response.file_hashes[it.key()] = it.value();
+    if (msg_type == MessageType::SCAN_DIRECTORY_RESPONSE) {
+        Protocol protocol;
+        std::string json_str(msg_data.begin(), msg_data.end());
+        auto json = nlohmann::json::parse(json_str);
+        
+        ScanDirectoryResponse dir_summary;
+        dir_summary.total_files = json.value("total_files", 0);
+        dir_summary.clean_files = json.value("clean_files", 0);
+        dir_summary.malicious_files = json.value("malicious_files", 0);
+        dir_summary.unsupported_files = json.value("unsupported_files", 0);
+        dir_summary.error_files = json.value("error_files", 0);
+        dir_summary.total_time_ms = json.value("total_time_ms", 0);
+        
+        dir_summary.source_file_path = json.value("source_file_path", file_path);
+        dir_summary.source_file_size = json.value("source_file_size", 0);
+        
+        std::string result_str = json.value("aggregated_result", "ERROR");
+        if (result_str == "CLEAN") dir_summary.aggregated_result = common::ScanResult::CLEAN;
+        else if (result_str == "MALICIOUS") dir_summary.aggregated_result = common::ScanResult::MALICIOUS;
+        else if (result_str == "UNSUPPORTED") dir_summary.aggregated_result = common::ScanResult::UNSUPPORTED;
+        else dir_summary.aggregated_result = common::ScanResult::ERROR;
+        
+        dir_summary.aggregated_confidence = json.value("aggregated_confidence", 0.0f);
+        
+        if (json.contains("results") && json["results"].is_array()) {
+            for (const auto& result_json : json["results"]) {
+                common::ScanMetadata result;
+                result.file_path = result_json.value("file_path", "");
+                
+                std::string r_str = result_json.value("result", "ERROR");
+                if (r_str == "CLEAN") result.result = common::ScanResult::CLEAN;
+                else if (r_str == "MALICIOUS") result.result = common::ScanResult::MALICIOUS;
+                else if (r_str == "UNSUPPORTED") result.result = common::ScanResult::UNSUPPORTED;
+                else result.result = common::ScanResult::ERROR;
+                
+                result.confidence = result_json.value("confidence", 0.0f);
+                result.file_type = result_json.value("file_type", "");
+                result.file_size = result_json.value("file_size", 0);
+                
+                if (result_json.contains("error")) {
+                    result.error_message = result_json["error"];
+                }
+                
+                if (result_json.contains("file_hashes") && result_json["file_hashes"].is_object()) {
+                    std::map<std::string, std::string> hashes;
+                    for (auto it = result_json["file_hashes"].begin(); 
+                         it != result_json["file_hashes"].end(); ++it) {
+                        hashes[it.key()] = it.value();
+                    }
+                    result.file_hashes = hashes;
+                }
+                
+                dir_summary.results.push_back(result);
+            }
         }
+        
+        ScanResponse response;
+        response.file_path = dir_summary.source_file_path;
+        response.file_size = dir_summary.source_file_size;
+        response.result = dir_summary.aggregated_result;
+        response.confidence = dir_summary.aggregated_confidence;
+        response.scan_time_ms = dir_summary.total_time_ms;
+        response.file_type = "archive";
+        
+        response.is_archive = true;
+        response.archive_total_files = dir_summary.total_files;
+        response.archive_malicious_files = dir_summary.malicious_files;
+        response.archive_clean_files = dir_summary.clean_files;
+        response.archive_unsupported_files = dir_summary.unsupported_files;
+        response.archive_error_files = dir_summary.error_files;
+        
+        response.archive_results = dir_summary.results;
+        
+        for (const auto& result : dir_summary.results) {
+            if (result.result == common::ScanResult::MALICIOUS) {
+                response.infected_files.push_back(result.file_path);
+            }
+        }
+        
+        return response;
     }
     
-    return response;
+    if (msg_type == MessageType::SCAN_FILE_COMPLETE) {
+        Protocol protocol;
+        std::vector<ScanFileComplete> file_results;
+        
+        while (msg_type == MessageType::SCAN_FILE_COMPLETE) {
+            ScanFileComplete file_result;
+            if (protocol.parseScanFileComplete(msg_data, file_result)) {
+                file_results.push_back(file_result);
+            }
+            
+            auto next = pimpl_->receiveAnyResponse();
+            if (!next) break;
+            
+            msg_type = next->first;
+            msg_data = next->second;
+        }
+        
+        if (msg_type == MessageType::SCAN_DIRECTORY_RESPONSE) {
+            ScanDirectoryResponse dir_summary;
+            Protocol protocol;
+            
+            std::string json_str(msg_data.begin(), msg_data.end());
+            auto json = nlohmann::json::parse(json_str);
+            
+            dir_summary.total_files = json.value("total_files", 0);
+            dir_summary.clean_files = json.value("clean_files", 0);
+            dir_summary.malicious_files = json.value("malicious_files", 0);
+            dir_summary.unsupported_files = json.value("unsupported_files", 0);
+            dir_summary.error_files = json.value("error_files", 0);
+            dir_summary.total_time_ms = json.value("total_time_ms", 0);
+            
+            dir_summary.source_file_path = json.value("source_file_path", file_path);
+            dir_summary.source_file_size = json.value("source_file_size", 0);
+            
+            std::string result_str = json.value("aggregated_result", "ERROR");
+            if (result_str == "CLEAN") dir_summary.aggregated_result = common::ScanResult::CLEAN;
+            else if (result_str == "MALICIOUS") dir_summary.aggregated_result = common::ScanResult::MALICIOUS;
+            else if (result_str == "UNSUPPORTED") dir_summary.aggregated_result = common::ScanResult::UNSUPPORTED;
+            else dir_summary.aggregated_result = common::ScanResult::ERROR;
+            
+            dir_summary.aggregated_confidence = json.value("aggregated_confidence", 0.0f);
+            
+            ScanResponse response;
+            response.file_path = dir_summary.source_file_path;
+            response.file_size = dir_summary.source_file_size;
+            response.result = dir_summary.aggregated_result;
+            response.confidence = dir_summary.aggregated_confidence;
+            response.is_archive = true;
+            response.file_type = "archive";
+            
+            response.archive_total_files = dir_summary.total_files;
+            response.archive_malicious_files = dir_summary.malicious_files;
+            response.archive_clean_files = dir_summary.clean_files;
+            response.archive_unsupported_files = dir_summary.unsupported_files;
+            response.archive_error_files = dir_summary.error_files;
+            
+            for (const auto& result : file_results) {
+                common::ScanMetadata metadata;
+                metadata.file_path = result.file_path;
+                metadata.result = result.result;
+                metadata.confidence = result.confidence;
+                metadata.file_type = result.file_type;
+                metadata.file_size = result.file_size;
+                if (!result.error_message.empty()) {
+                    metadata.error_message = result.error_message;
+                }
+                if (!result.file_hashes.empty()) {
+                    metadata.file_hashes = result.file_hashes;
+                }
+                response.archive_results.push_back(metadata);
+                
+                if (result.result == common::ScanResult::MALICIOUS) {
+                    response.infected_files.push_back(result.file_path);
+                }
+            }
+            
+            response.scan_time_ms = dir_summary.total_time_ms;
+            
+            return response;
+        }
+        
+        return std::nullopt;
+    }
+    
+    if (msg_type == MessageType::SCAN_RESPONSE) {
+        Protocol protocol;
+        std::string json_str(msg_data.begin(), msg_data.end());
+        auto json = nlohmann::json::parse(json_str);
+        
+        ScanResponse response;
+        
+        std::string result_str = json["result"];
+        if (result_str == "CLEAN") response.result = common::ScanResult::CLEAN;
+        else if (result_str == "MALICIOUS") response.result = common::ScanResult::MALICIOUS;
+        else if (result_str == "UNSUPPORTED") response.result = common::ScanResult::UNSUPPORTED;
+        else response.result = common::ScanResult::ERROR;
+        
+        response.confidence = json.value("confidence", 0.0f);
+        response.file_type = json.value("file_type", "");
+        response.file_size = json.value("file_size", 0);
+        response.scan_time_ms = json.value("scan_time_ms", 0);
+        response.scan_timestamp = json.value("scan_timestamp", "");
+        response.sdk_version = json.value("sdk_version", "");
+        response.model_version = json.value("model_version", "");
+        response.error_message = json.value("error", "");
+        
+        if (json.contains("file_hashes") && json["file_hashes"].is_object()) {
+            for (auto it = json["file_hashes"].begin(); it != json["file_hashes"].end(); ++it) {
+                response.file_hashes[it.key()] = it.value();
+            }
+        }
+        
+        return response;
+    }
+    
+    return std::nullopt;
 }
 
 std::optional<ScanDirectoryResponse> DaemonClient::scanDirectoryWithFds(
@@ -437,6 +611,8 @@ std::optional<ScanDirectoryResponse> DaemonClient::scanDirectoryWithFds(
                 if (fd >= 0) {
                     fds.push_back(fd);
                     paths.push_back(files[i].string());
+                } else {
+                    state.open_failures.fetch_add(1);
                 }
             }
             
@@ -562,6 +738,7 @@ std::optional<ScanDirectoryResponse> DaemonClient::scanDirectoryWithFds(
     response.unsupported_files = json.value("unsupported_files", 0);
     response.error_files = json.value("error_files", 0);
     response.total_time_ms = json.value("total_time_ms", 0);
+    response.client_open_failures = state.open_failures.load();
     
     if (json.contains("results") && json["results"].is_array()) {
         for (const auto& result_json : json["results"]) {

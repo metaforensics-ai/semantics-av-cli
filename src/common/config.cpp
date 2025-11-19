@@ -123,6 +123,12 @@ GlobalConfig Config::createDefaultConfig() {
     config.report.auto_cleanup = REPORT_AUTO_CLEANUP;
     config.report.max_reports = REPORT_MAX_REPORTS;
     
+    config.archive.scan_archives = ARCHIVE_SCAN_ENABLED;
+    config.archive.max_extracted_size_mb = ARCHIVE_MAX_EXTRACTED_SIZE_MB;
+    config.archive.max_file_count = ARCHIVE_MAX_FILE_COUNT;
+    config.archive.max_recursion_depth = ARCHIVE_MAX_RECURSION_DEPTH;
+    config.archive.max_compression_ratio = ARCHIVE_MAX_COMPRESSION_RATIO;
+    
     config.daemon.http_port = DAEMON_HTTP_PORT;
     config.daemon.http_host = DAEMON_HTTP_HOST;
     config.daemon.read_timeout = DAEMON_READ_TIMEOUT;
@@ -511,6 +517,26 @@ bool Config::tryLoadTomlFile(const std::string& path, const std::string& descrip
             }
         }
         
+        if (data.contains("archive")) {
+            auto archive_section = data.at("archive");
+            
+            if (archive_section.contains("scan_archives")) {
+                global_.archive.scan_archives = toml::find<bool>(archive_section, "scan_archives");
+            }
+            if (archive_section.contains("max_extracted_size_mb")) {
+                global_.archive.max_extracted_size_mb = toml::find<size_t>(archive_section, "max_extracted_size_mb");
+            }
+            if (archive_section.contains("max_file_count")) {
+                global_.archive.max_file_count = toml::find<size_t>(archive_section, "max_file_count");
+            }
+            if (archive_section.contains("max_recursion_depth")) {
+                global_.archive.max_recursion_depth = toml::find<int>(archive_section, "max_recursion_depth");
+            }
+            if (archive_section.contains("max_compression_ratio")) {
+                global_.archive.max_compression_ratio = toml::find<int>(archive_section, "max_compression_ratio");
+            }
+        }
+        
         Logger::instance().info("[Config] {} loaded | path={}", description, path);
         return true;
     } catch (const std::exception& e) {
@@ -582,6 +608,13 @@ bool Config::save(const std::string& config_file) {
                 {"retention_days", global_.report.retention_days},
                 {"auto_cleanup", global_.report.auto_cleanup},
                 {"max_reports", global_.report.max_reports}
+            }},
+            {"archive", toml::table{
+                {"scan_archives", global_.archive.scan_archives},
+                {"max_extracted_size_mb", global_.archive.max_extracted_size_mb},
+                {"max_file_count", global_.archive.max_file_count},
+                {"max_recursion_depth", global_.archive.max_recursion_depth},
+                {"max_compression_ratio", global_.archive.max_compression_ratio}
             }}
         };
         
@@ -737,6 +770,11 @@ void Config::setValue(const std::string& key, const std::string& value) {
     else if (key == "report.retention_days") global_.report.retention_days = std::stoi(value);
     else if (key == "report.auto_cleanup") global_.report.auto_cleanup = (value == "true" || value == "1");
     else if (key == "report.max_reports") global_.report.max_reports = std::stoi(value);
+    else if (key == "archive.scan_archives") global_.archive.scan_archives = (value == "true" || value == "1");
+    else if (key == "archive.max_extracted_size_mb") global_.archive.max_extracted_size_mb = std::stoull(value);
+    else if (key == "archive.max_file_count") global_.archive.max_file_count = std::stoull(value);
+    else if (key == "archive.max_recursion_depth") global_.archive.max_recursion_depth = std::stoi(value);
+    else if (key == "archive.max_compression_ratio") global_.archive.max_compression_ratio = std::stoi(value);
 }
 
 std::optional<std::string> Config::getValue(const std::string& key) const {
@@ -787,6 +825,11 @@ std::optional<std::string> Config::getValue(const std::string& key) const {
     else if (key == "report.retention_days") return std::to_string(global_.report.retention_days);
     else if (key == "report.auto_cleanup") return global_.report.auto_cleanup ? "true" : "false";
     else if (key == "report.max_reports") return std::to_string(global_.report.max_reports);
+    else if (key == "archive.scan_archives") return global_.archive.scan_archives ? "true" : "false";
+    else if (key == "archive.max_extracted_size_mb") return std::to_string(global_.archive.max_extracted_size_mb);
+    else if (key == "archive.max_file_count") return std::to_string(global_.archive.max_file_count);
+    else if (key == "archive.max_recursion_depth") return std::to_string(global_.archive.max_recursion_depth);
+    else if (key == "archive.max_compression_ratio") return std::to_string(global_.archive.max_compression_ratio);
     
     return std::nullopt;
 }

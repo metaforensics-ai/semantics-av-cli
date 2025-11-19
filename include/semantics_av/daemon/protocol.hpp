@@ -70,6 +70,16 @@ struct ScanResponse {
     std::string model_version;
     std::string error_message;
     std::map<std::string, std::string> file_hashes;
+    
+    bool is_archive = false;
+    size_t archive_total_files = 0;
+    size_t archive_malicious_files = 0;
+    size_t archive_clean_files = 0;
+    size_t archive_unsupported_files = 0;
+    size_t archive_error_files = 0;
+    size_t archive_encrypted_files = 0;
+    std::vector<std::string> infected_files;
+    std::vector<common::ScanMetadata> archive_results;
 };
 
 struct ScanDirectoryInit {
@@ -110,6 +120,11 @@ struct ScanDirectoryResponse {
     size_t error_files;
     uint64_t total_time_ms;
     std::vector<common::ScanMetadata> results;
+    std::string source_file_path;
+    size_t source_file_size;
+    common::ScanResult aggregated_result;
+    float aggregated_confidence;
+    size_t client_open_failures = 0;
 };
 
 struct AnalyzeRequest {

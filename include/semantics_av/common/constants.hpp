@@ -106,6 +106,12 @@ namespace config_defaults {
     constexpr bool REPORT_AUTO_CLEANUP = true;
     constexpr int REPORT_MAX_REPORTS = 1000;
     
+    constexpr bool ARCHIVE_SCAN_ENABLED = true;
+    constexpr size_t ARCHIVE_MAX_EXTRACTED_SIZE_MB = 100;
+    constexpr size_t ARCHIVE_MAX_FILE_COUNT = 10000;
+    constexpr int ARCHIVE_MAX_RECURSION_DEPTH = 3;
+    constexpr int ARCHIVE_MAX_COMPRESSION_RATIO = 250;
+    
     constexpr uint16_t DAEMON_HTTP_PORT = limits::DEFAULT_HTTP_PORT;
     constexpr const char* DAEMON_HTTP_HOST = limits::DEFAULT_HTTP_HOST;
     constexpr int DAEMON_MAX_CONNECTIONS_SYSTEM = limits::DEFAULT_DAEMON_MAX_CONNECTIONS_SYSTEM;

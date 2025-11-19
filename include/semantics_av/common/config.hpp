@@ -53,6 +53,14 @@ struct ReportConfig {
     int max_reports;
 };
 
+struct ArchiveConfig {
+    bool scan_archives;
+    size_t max_extracted_size_mb;
+    size_t max_file_count;
+    int max_recursion_depth;
+    int max_compression_ratio;
+};
+
 struct GlobalConfig {
     std::string base_path;
     std::string models_path;
@@ -69,6 +77,7 @@ struct GlobalConfig {
     ScanConfig scan;
     LoggingConfig logging;
     ReportConfig report;
+    ArchiveConfig archive;
 };
 
 class Config {

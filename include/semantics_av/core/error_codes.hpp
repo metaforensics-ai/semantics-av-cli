@@ -31,7 +31,14 @@ enum class CoreErrorCode {
     
     SDK_INTERNAL_ERROR = 500,
     SDK_INFERENCE_FAILED = 501,
-    SDK_MEMORY_ERROR = 502
+    SDK_MEMORY_ERROR = 502,
+    
+    ARCHIVE_OPEN_FAILED = 600,
+    ARCHIVE_CORRUPTED = 601,
+    ARCHIVE_ENCRYPTED = 602,
+    ARCHIVE_BOMB_DETECTED = 603,
+    ARCHIVE_UNSUPPORTED_FORMAT = 604,
+    ARCHIVE_EXTRACTION_FAILED = 605
 };
 
 CoreErrorCode mapSdkResult(semantics_av::Result sdk_result);
@@ -147,6 +154,36 @@ ErrorRegistry<core::CoreErrorCode>::getInfoMap() {
             core::CoreErrorCode::SDK_MEMORY_ERROR,
             "SDK_MEMORY_ERROR",
             "SDK memory error"
+        }},
+        {core::CoreErrorCode::ARCHIVE_OPEN_FAILED, {
+            core::CoreErrorCode::ARCHIVE_OPEN_FAILED,
+            "ARCHIVE_OPEN_FAILED",
+            "Failed to open archive"
+        }},
+        {core::CoreErrorCode::ARCHIVE_CORRUPTED, {
+            core::CoreErrorCode::ARCHIVE_CORRUPTED,
+            "ARCHIVE_CORRUPTED",
+            "Archive file corrupted"
+        }},
+        {core::CoreErrorCode::ARCHIVE_ENCRYPTED, {
+            core::CoreErrorCode::ARCHIVE_ENCRYPTED,
+            "ARCHIVE_ENCRYPTED",
+            "Archive entry encrypted"
+        }},
+        {core::CoreErrorCode::ARCHIVE_BOMB_DETECTED, {
+            core::CoreErrorCode::ARCHIVE_BOMB_DETECTED,
+            "ARCHIVE_BOMB_DETECTED",
+            "Potential archive bomb detected"
+        }},
+        {core::CoreErrorCode::ARCHIVE_UNSUPPORTED_FORMAT, {
+            core::CoreErrorCode::ARCHIVE_UNSUPPORTED_FORMAT,
+            "ARCHIVE_UNSUPPORTED_FORMAT",
+            "Unsupported archive format"
+        }},
+        {core::CoreErrorCode::ARCHIVE_EXTRACTION_FAILED, {
+            core::CoreErrorCode::ARCHIVE_EXTRACTION_FAILED,
+            "ARCHIVE_EXTRACTION_FAILED",
+            "Archive extraction failed"
         }}
     };
     return map;

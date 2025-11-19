@@ -10,6 +10,7 @@
 #include "semantics_av/format/html_formatter.hpp"
 #include "semantics_av/format/markdown_formatter.hpp"
 #include "semantics_av/report/storage.hpp"
+#include "semantics_av/scan/scanner.hpp"
 #include <semantics_av/semantics_av.hpp>
 #include <nlohmann/json.hpp>
 #include <sstream>
@@ -442,6 +443,81 @@ void HttpApiServer::handleScanFile(const httplib::Request& req, httplib::Respons
         auto start_time = std::chrono::steady_clock::now();
         
         std::vector<uint8_t> buffer(file.content.begin(), file.content.end());
+        
+        scan::Scanner scanner(engine_);
+        
+        if (scanner.isArchive(buffer)) {
+            common::Logger::instance().info("[HTTP] Archive detected | file={}", file.filename);
+            
+            scan::ScanOptions options;
+            options.include_hashes = include_hashes;
+            
+            auto summary = scanner.scanArchive(
+                buffer,
+                file.filename.empty() ? "uploaded_archive" : file.filename,
+                file.content.size(),
+                options
+            );
+            
+            auto verdict = scan::calculateArchiveVerdict(summary.results);
+            
+            nlohmann::json response;
+            response["is_archive"] = true;
+            response["archive_path"] = file.filename.empty() ? "uploaded_archive" : file.filename;
+            response["file_size"] = file.content.size();
+            
+            response["verdict"] = common::to_string(verdict.result);
+            response["confidence"] = verdict.confidence;
+            
+            nlohmann::json results_array = nlohmann::json::array();
+            for (const auto& result : summary.results) {
+                nlohmann::json file_result;
+                file_result["file_path"] = result.file_path;
+                file_result["result"] = common::to_string(result.result);
+                file_result["confidence"] = result.confidence;
+                file_result["file_type"] = result.file_type;
+                file_result["file_size"] = result.file_size;
+                file_result["scan_time_ms"] = result.scan_time.count();
+                
+                if (result.error_message) {
+                    file_result["error"] = *result.error_message;
+                }
+                
+                if (result.file_hashes && !result.file_hashes->empty()) {
+                    file_result["file_hashes"] = *result.file_hashes;
+                }
+                
+                results_array.push_back(file_result);
+            }
+            response["results"] = results_array;
+            
+            response["summary"] = {
+                {"total_files", summary.total_files},
+                {"clean_files", summary.clean_files},
+                {"malicious_files", summary.malicious_files},
+                {"unsupported_files", summary.unsupported_files},
+                {"error_files", summary.error_files},
+                {"total_time_ms", summary.total_time.count()}
+            };
+            
+            nlohmann::json infected_array = nlohmann::json::array();
+            for (const auto& result : summary.results) {
+                if (result.result == common::ScanResult::MALICIOUS) {
+                    infected_array.push_back(result.file_path);
+                }
+            }
+            response["infected_files"] = infected_array;
+            
+            http::HttpResponse::sendSuccess(res, response);
+            
+            common::Logger::instance().info(
+                "[HTTP] Archive scan complete | verdict={} | confidence={:.1f} | total={} | malicious={}",
+                common::to_string(verdict.result), verdict.confidence * 100,
+                summary.total_files, summary.malicious_files);
+            
+            return;
+        }
+        
         auto result = engine_->scan(buffer, include_hashes);
         
         result.file_path = file.filename.empty() ? "uploaded_file" : file.filename;
