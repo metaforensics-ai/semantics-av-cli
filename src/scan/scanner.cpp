@@ -12,9 +12,60 @@
 #include <atomic>
 #include <unistd.h>
 #include <cstring>
+#include <fstream>
 
 namespace semantics_av {
 namespace scan {
+
+namespace {
+
+constexpr size_t HEADER_CHECK_SIZE = 64;
+
+static bool isELF(const std::vector<uint8_t>& data) {
+    return data.size() >= 4 &&
+           data[0] == 0x7F &&
+           data[1] == 'E' &&
+           data[2] == 'L' &&
+           data[3] == 'F';
+}
+
+static bool isPE(const std::vector<uint8_t>& data) {
+    return data.size() >= 2 &&
+           data[0] == 'M' &&
+           data[1] == 'Z';
+}
+
+static bool isKnownExecutableFormat(const std::vector<uint8_t>& data) {
+    return isELF(data) || isPE(data);
+}
+
+static std::vector<uint8_t> readFileHeader(const std::filesystem::path& path, size_t bytes) {
+    std::vector<uint8_t> header;
+    
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        return header;
+    }
+    
+    header.resize(bytes);
+    file.read(reinterpret_cast<char*>(header.data()), bytes);
+    
+    if (file.gcount() > 0) {
+        header.resize(file.gcount());
+    } else {
+        header.clear();
+    }
+    
+    return header;
+}
+
+static bool hasValidArchiveEntry(struct archive* a) {
+    struct archive_entry* entry;
+    int r = archive_read_next_header(a, &entry);
+    return (r == ARCHIVE_OK);
+}
+
+}
 
 ArchiveVerdict calculateArchiveVerdict(const std::vector<common::ScanMetadata>& results) {
     if (results.empty()) {
@@ -69,18 +120,51 @@ void Scanner::configureArchiveFormats(archive* a) {
 }
 
 bool Scanner::isArchive(const std::filesystem::path& path) {
+    std::error_code ec;
+    auto file_size = std::filesystem::file_size(path, ec);
+    if (ec || file_size < 4) {
+        return false;
+    }
+    
+    auto header = readFileHeader(path, HEADER_CHECK_SIZE);
+    if (header.empty()) {
+        return false;
+    }
+    
+    if (isKnownExecutableFormat(header)) {
+        common::Logger::instance().debug("[Archive] Known binary format detected | path={} | type={}",
+                                        path.string(), isELF(header) ? "ELF" : "PE");
+        return false;
+    }
+    
     struct archive* a = archive_read_new();
     configureArchiveFormats(a);
     
     int r = archive_read_open_filename(a, path.c_str(), 10240);
-    bool result = (r == ARCHIVE_OK);
+    if (r != ARCHIVE_OK) {
+        archive_read_free(a);
+        return false;
+    }
+    
+    bool has_entry = hasValidArchiveEntry(a);
+    
+    if (!has_entry) {
+        common::Logger::instance().debug("[Archive] No valid entries found | path={} | likely_false_positive=true",
+                                        path.string());
+    }
     
     archive_read_free(a);
-    return result;
+    return has_entry;
 }
 
 bool Scanner::isArchive(const std::vector<uint8_t>& data) {
-    if (data.empty()) {
+    if (data.size() < 4) {
+        return false;
+    }
+    
+    if (isKnownExecutableFormat(data)) {
+        common::Logger::instance().debug("[Archive] Known binary format detected | type={}",
+                                        isELF(data) ? "ELF" : "PE");
         return false;
     }
     
@@ -88,10 +172,20 @@ bool Scanner::isArchive(const std::vector<uint8_t>& data) {
     configureArchiveFormats(a);
     
     int r = archive_read_open_memory(a, data.data(), data.size());
-    bool result = (r == ARCHIVE_OK);
+    if (r != ARCHIVE_OK) {
+        archive_read_free(a);
+        return false;
+    }
+    
+    bool has_entry = hasValidArchiveEntry(a);
+    
+    if (!has_entry) {
+        common::Logger::instance().debug("[Archive] No valid entries found | size={} | likely_false_positive=true",
+                                        data.size());
+    }
     
     archive_read_free(a);
-    return result;
+    return has_entry;
 }
 
 ScanSummary Scanner::scanArchive(const std::filesystem::path& path, const ScanOptions& options) {
