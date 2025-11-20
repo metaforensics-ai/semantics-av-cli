@@ -5,7 +5,7 @@
 [![Blog Post](https://img.shields.io/badge/Read_Blog_Post-Hashnode-2962FF?logo=hashnode&logoColor=white)](https://semanticsav.hashnode.dev/)
 [![Platform](https://img.shields.io/badge/Linux-x86__64%20|%20ARM64-orange.svg)]()
 
-> **Free, Offline, AI-Native Malware Scanner for Linux (PE/ELF)**
+> **Free, Offline, AI-Native Malware Scanner for Linux**
 >
 > Detects evasive threats using structural logic instead of signatures. No network required for scanning.
 
@@ -42,6 +42,7 @@ SemanticsAV provides analysis through three components:
 
 - **Offline Scanner**: Complete malware scanning without network dependency during analysis (Zero-Network Runtime).
 - **Constant Scan Speed**: No performance degradation as threat coverage grows.
+- **Archive Inspection**: Recursively scans nested archives (ZIP, TAR, RAR, etc.) for supported threats, with built-in protection against decompression bombs.
 - **Explainable Verdicts**: Understand verdict reasoning with attack campaign identification and threat vector analysis.
 - **Privacy-First**: SDK has zero network capability. All communication occurs through auditable open-source CLI.
 - **Free on Linux**: Unlimited scanning for personal, commercial, and service provider use.
@@ -92,9 +93,10 @@ semantics-av analyze suspicious.exe --format html -o report.html
 **Currently Supported:**
 - **PE (Portable Executable)**: Windows executables (.exe, .dll, .sys)
 - **ELF (Executable and Linkable Format)**: Linux/Unix executables and shared objects
+- **Archives**: Compressed containers (ZIP, TAR, 7Z, RAR, etc.) automatically unpacked for recursive inspection.
 
 **Expanding Coverage:**
-We are actively expanding the engine to cover document formats (Office, PDF), script languages (JavaScript, PowerShell, Python), and mobile executables (APK, IPA), aiming to secure all vectors of malicious execution.
+Our immediate roadmap prioritizes **Server-Side WebShells & Scripts (PHP, JSP, Bash, Python, Perl, etc.)**. Beyond this, we plan to support other exploitable file formats across various platforms, focusing on active attack vectors.
 
 ---
 
