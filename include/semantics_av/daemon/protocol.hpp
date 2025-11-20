@@ -125,6 +125,9 @@ struct ScanDirectoryResponse {
     common::ScanResult aggregated_result;
     float aggregated_confidence;
     size_t client_open_failures = 0;
+    size_t encrypted_files = 0;
+    size_t archive_errors = 0;
+    size_t compression_ratio_exceeded = 0;
 };
 
 struct AnalyzeRequest {

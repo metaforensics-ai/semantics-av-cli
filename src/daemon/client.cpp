@@ -373,6 +373,9 @@ std::optional<ScanResponse> DaemonClient::scan(const std::string& file_path, boo
         dir_summary.malicious_files = json.value("malicious_files", 0);
         dir_summary.unsupported_files = json.value("unsupported_files", 0);
         dir_summary.error_files = json.value("error_files", 0);
+        dir_summary.encrypted_files = json.value("encrypted_files", 0);
+        dir_summary.archive_errors = json.value("archive_errors", 0);
+        dir_summary.compression_ratio_exceeded = json.value("compression_ratio_exceeded", 0);
         dir_summary.total_time_ms = json.value("total_time_ms", 0);
         
         dir_summary.source_file_path = json.value("source_file_path", file_path);
@@ -432,6 +435,7 @@ std::optional<ScanResponse> DaemonClient::scan(const std::string& file_path, boo
         response.archive_clean_files = dir_summary.clean_files;
         response.archive_unsupported_files = dir_summary.unsupported_files;
         response.archive_error_files = dir_summary.error_files;
+        response.archive_encrypted_files = dir_summary.encrypted_files;
         
         response.archive_results = dir_summary.results;
         
@@ -473,6 +477,9 @@ std::optional<ScanResponse> DaemonClient::scan(const std::string& file_path, boo
             dir_summary.malicious_files = json.value("malicious_files", 0);
             dir_summary.unsupported_files = json.value("unsupported_files", 0);
             dir_summary.error_files = json.value("error_files", 0);
+            dir_summary.encrypted_files = json.value("encrypted_files", 0);
+            dir_summary.archive_errors = json.value("archive_errors", 0);
+            dir_summary.compression_ratio_exceeded = json.value("compression_ratio_exceeded", 0);
             dir_summary.total_time_ms = json.value("total_time_ms", 0);
             
             dir_summary.source_file_path = json.value("source_file_path", file_path);
@@ -499,6 +506,7 @@ std::optional<ScanResponse> DaemonClient::scan(const std::string& file_path, boo
             response.archive_clean_files = dir_summary.clean_files;
             response.archive_unsupported_files = dir_summary.unsupported_files;
             response.archive_error_files = dir_summary.error_files;
+            response.archive_encrypted_files = dir_summary.encrypted_files;
             
             for (const auto& result : file_results) {
                 common::ScanMetadata metadata;

@@ -373,6 +373,9 @@ void RequestHandler::handleScanFdRequest(Connection* conn, const ScanRequest& re
         dir_response.malicious_files = summary.malicious_files;
         dir_response.unsupported_files = summary.unsupported_files;
         dir_response.error_files = summary.error_files;
+        dir_response.encrypted_files = summary.encrypted_files;
+        dir_response.archive_errors = summary.archive_errors;
+        dir_response.compression_ratio_exceeded = summary.compression_ratio_exceeded;
         dir_response.total_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - start_time).count();
         dir_response.results = summary.results;

@@ -320,6 +320,9 @@ std::vector<uint8_t> Protocol::serializeScanDirectoryResponse(const ScanDirector
     json["malicious_files"] = response.malicious_files;
     json["unsupported_files"] = response.unsupported_files;
     json["error_files"] = response.error_files;
+    json["encrypted_files"] = response.encrypted_files;
+    json["archive_errors"] = response.archive_errors;
+    json["compression_ratio_exceeded"] = response.compression_ratio_exceeded;
     json["total_time_ms"] = response.total_time_ms;
     
     json["source_file_path"] = response.source_file_path;
