@@ -2,6 +2,7 @@
 #include "semantics_av/core/error_codes.hpp"
 #include "semantics_av/common/error_framework.hpp"
 #include "semantics_av/common/logger.hpp"
+#include "semantics_av/format/format_utils.hpp"
 #include <archive.h>
 #include <archive_entry.h>
 #include <algorithm>
@@ -63,6 +64,28 @@ static bool hasValidArchiveEntry(struct archive* a) {
     struct archive_entry* entry;
     int r = archive_read_next_header(a, &entry);
     return (r == ARCHIVE_OK);
+}
+
+static std::string extractEntryPathname(
+    struct archive_entry* entry,
+    const std::string& archive_path,
+    size_t entry_index
+) {
+    const char* pathname = archive_entry_pathname(entry);
+    
+    if (pathname && pathname[0] != '\0') {
+        std::string sanitized = format::sanitizeControlCharacters(pathname);
+        if (!sanitized.empty()) {
+            return archive_path + ":" + sanitized;
+        }
+    }
+    
+    common::Logger::instance().warn(
+        "[Archive] Using fallback pathname | archive={} | entry_index={}", 
+        archive_path, entry_index
+    );
+    
+    return archive_path + ":entry_" + std::to_string(entry_index);
 }
 
 }
@@ -336,28 +359,8 @@ ScanSummary Scanner::scanArchiveInternal(struct archive* a,
         
         entry_count++;
         
-        const char* pathname = archive_entry_pathname(entry);
-        if (!pathname || pathname[0] == '\0') {
-            common::Logger::instance().warn(
-                "[Archive] NULL or empty pathname | archive={} | entry_index={}", 
-                archive_path, summary.total_files_found
-            );
-            
-            common::ScanMetadata error_result;
-            error_result.file_path = archive_path + ":<unnamed entry " + std::to_string(summary.total_files_found) + ">";
-            error_result.result = common::ScanResult::ERROR;
-            error_result.error_message = "Archive entry has null or empty pathname";
-            error_result.error_code = core::CoreErrorCode::ARCHIVE_CORRUPTED;
-            
-            summary.results.push_back(error_result);
-            summary.error_files++;
-            summary.archive_errors++;
-            continue;
-        }
-        
         size_t entry_size = archive_entry_size(entry);
-        std::string entry_path(pathname);
-        std::string full_path = archive_path + ":" + entry_path;
+        std::string full_path = extractEntryPathname(entry, archive_path, summary.total_files_found);
         
         if (entry_size > archive_size * options.max_compression_ratio) {
             common::Logger::instance().warn(
