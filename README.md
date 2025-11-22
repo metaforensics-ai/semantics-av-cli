@@ -367,9 +367,9 @@ The uninstaller automatically detects installation type and optionally removes c
 
 ## License & Platform Support
 
-### Linux SDK: Free for All Commercial Uses
+### Linux SDK: Free for Internal Use and Service Delivery
 
-The **SemanticsAV SDK for Linux** is provided under a **perpetual, royalty-free EULA**. All commercial uses are permitted including service delivery, product integration, and redistribution, subject only to the terms specified in the EULA (no reverse engineering, no competitive development, mandatory attribution).
+The **SemanticsAV SDK for Linux** is provided under a **perpetual, royalty-free EULA**. All commercial uses are permitted for internal business operations and service delivery. Public redistribution of SDK binaries is prohibited - users must obtain SDK from official sources.
 
 **Full details:** [EULA.md](EULA.md)
 
@@ -378,7 +378,7 @@ The **SemanticsAV SDK for Linux** is provided under a **perpetual, royalty-free 
 | Component | License | Details |
 |-----------|---------|---------|
 | **SemanticsAV CLI** | [MIT](LICENSE.md) | Full rights: modify, distribute, commercial use |
-| **SemanticsAV SDK (Linux)** | [EULA](EULA.md) | All commercial uses permitted under EULA terms |
+| **SemanticsAV SDK (Linux)** | [EULA](EULA.md) | Free for internal use and service delivery |
 | **SemanticsAV Intelligence** | [Terms of Service](INTELLIGENCE_TOS.md) | Subscription service, separate terms |
 
 ### When You Need a Commercial License

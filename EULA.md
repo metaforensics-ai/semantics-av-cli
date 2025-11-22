@@ -65,24 +65,46 @@ Subject to compliance with Section 3, you may use the Publicly Available Platfor
 - Incorporating the Platform into SaaS platforms or cloud services
 - Any business model where Platform functionality is provided to external parties
 
-#### **d) Commercial Redistribution**
-- Bundling and redistributing unmodified SDK binaries in commercial products
-- Integrating the Platform into commercial software distributions
-- Including the Platform in security appliances or enterprise products
-- Distributing the Platform to customers, partners, or end users
+#### **d) Product Integration**
+- Using SDK to provide services to clients
+- Integrating SDK functionality into your products
+- Developing applications that utilize SDK capabilities
 
-**Redistribution Requirements:**
-- All recipients must be bound by this EULA
-- This EULA must accompany all distributions
-- SDK binaries must remain unmodified
-- Redistribution is limited to platforms covered by Tier 1
-- Attribution requirements in Section 3.3 must be fulfilled
+NOTE: Integration does not include redistributing SDK binaries.
+
+### **2.3 Prohibited Redistribution**
+
+You may NOT redistribute SDK binaries in any form, including:
+
+#### **a) Public Distribution**
+- Hosting on public repositories, mirrors, or package managers
+- Bundling in publicly distributed software packages
+- Including in Linux distribution packages or app stores
+- Providing SDK files through third-party download sites or CDNs
+
+#### **b) Commercial Distribution**
+- Distributing to customers, partners, or end users
+- Selling or sublicensing SDK binaries
+- Including in products sold or distributed externally
+- Providing SDK as part of commercial software distributions
+
+#### **Exception - Internal Enterprise Only**
+
+Distribution within your own organization is permitted when:
+- Distribution is limited to employees, contractors, or subsidiaries of the same legal entity
+- Recipients are bound by this EULA
+- No public access or external distribution occurs
+- You maintain control over all distributed copies
+
+#### **For Product Integrations**
+
+Products that integrate SemanticsAV must direct end users to obtain SDK from Company's designated official sources during installation.
 
 ---
 
 ## **3. RESTRICTIONS: THE THREE LAWS OF IP PROTECTION**
 
-While the Tier 1 freeware grant is intentionally permissive regarding usage and distribution, the following three restrictions are **absolute and non-negotiable** to protect the Platform's intellectual property:
+While the Tier 1 freeware grant is intentionally permissive regarding usage, the following three restrictions are **absolute and non-negotiable** to protect the Platform's intellectual property:
 
 ### **3.1 The Law of Secrecy: No Reverse Engineering**
 
@@ -113,7 +135,7 @@ You may **not** use the SDK, its functionality, or its Analysis Output to:
 
 ### **3.3 The Law of Acknowledgment: Mandatory Attribution**
 
-Any product, service, or distribution that incorporates, bundles, or redistributes the Publicly Available Platform **must** provide **clear and conspicuous attribution** to Meta Forensics Corp. and the SemanticsAV Platform.
+Any product, service, or distribution that incorporates or utilizes the Publicly Available Platform **must** provide **clear and conspicuous attribution** to Meta Forensics Corp. and the SemanticsAV Platform.
 
 **Required Attribution:**
 - Product documentation, legal notices, or "About" sections must include: *"Powered by SemanticsAV"* or *"Malware detection provided by SemanticsAV Platform"*
@@ -347,4 +369,4 @@ If you do not agree to these terms, do not use the SDK.
 ---
 
 *Version: 1.0*  
-*Effective Date: October 1, 2025*
+*Effective Date: November 23, 2025*

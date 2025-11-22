@@ -48,7 +48,7 @@ The SemanticsAV SDK binary engine is proprietary software licensed under a separ
 
 **Full terms:** [EULA.md](EULA.md)
 
-**Linux platform:** Free for all uses (personal, commercial, redistribution) subject to EULA restrictions (no reverse engineering, no competitive development, attribution required).
+**Linux platform:** Free for internal use and service delivery. Redistribution prohibited - SDK must be obtained from official sources.
 
 **Other platforms:** Commercial license required (Windows, macOS, etc.). Contact sales@metaforensics.ai.
 
