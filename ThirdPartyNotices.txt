@@ -22,7 +22,7 @@ The SemanticsAV CLI is the official open-source (MIT-licensed) interface to the 
    Description: Fast C++ logging library
    License File: licenses/spdlog/LICENSE
 
-3. cpp-httplib - 0.26.0
+3. cpp-httplib - 0.28.0
    Copyright: Copyright (c) 2024 Yuji Hirose. All rights reserved.
    License: MIT License
    Source: https://github.com/yhirose/cpp-httplib
@@ -43,7 +43,7 @@ The SemanticsAV CLI is the official open-source (MIT-licensed) interface to the 
    Description: TOML parser and serializer for C++11
    License File: licenses/toml11/LICENSE
 
-6. oneTBB (Threading Building Blocks) - 2022.2.0
+6. oneTBB (Threading Building Blocks) - 2022.3.0
    Copyright: Copyright (c) 2005-2024 Intel Corporation
    License: Apache License 2.0
    Source: https://github.com/oneapi-src/oneTBB
@@ -78,7 +78,7 @@ The SemanticsAV CLI is the official open-source (MIT-licensed) interface to the 
     Description: Markdown parser library
     License File: licenses/md4c/LICENSE.md
 
-11. libarchive - 3.8.2
+11. libarchive - 3.8.3
     Copyright: Copyright (c) 2003-2024 Tim Kientzle and libarchive contributors
     License: BSD 2-Clause License
     Source: https://github.com/libarchive/libarchive

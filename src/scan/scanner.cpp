@@ -133,12 +133,7 @@ Scanner::Scanner(core::SemanticsAVEngine* engine) : engine_(engine) {}
 Scanner::~Scanner() = default;
 
 void Scanner::configureArchiveFormats(archive* a) {
-    archive_read_support_format_zip(a);
-    archive_read_support_format_tar(a);
-    archive_read_support_format_7zip(a);
-    archive_read_support_format_rar(a);
-    archive_read_support_format_rar5(a);
-    
+    archive_read_support_format_all(a);
     archive_read_support_filter_all(a);
 }
 

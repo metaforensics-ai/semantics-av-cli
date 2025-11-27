@@ -3,14 +3,14 @@ include(ExternalProject)
 
 set(CLI11_VERSION "v2.5.0")
 set(SPDLOG_VERSION "v1.15.3")
-set(HTTPLIB_VERSION "v0.26.0")
+set(HTTPLIB_VERSION "v0.28.0")
 set(JSON_VERSION "v3.12.0")
 set(TOML11_VERSION "v4.4.0")
-set(TBB_VERSION "v2022.2.0")
+set(TBB_VERSION "v2022.3.0")
 set(JEMALLOC_VERSION "5.3.0")
 set(INJA_VERSION "v3.4.0")
 set(MD4C_VERSION "release-0.5.2")
-set(LIBARCHIVE_VERSION "v3.8.2")
+set(LIBARCHIVE_VERSION "v3.8.3")
 
 FetchContent_Declare(cli11
     GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
