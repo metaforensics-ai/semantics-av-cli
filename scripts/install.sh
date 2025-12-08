@@ -187,7 +187,6 @@ determine_install_mode() {
         fi
     fi
     
-    # Priority 2: Auto-detection
     if [ "$EUID" -eq 0 ]; then
         INSTALL_MODE="system"
         INSTALL_PREFIX="/usr/local"
@@ -211,46 +210,80 @@ check_command() {
     return 1
 }
 
+check_library() {
+    local lib="$1"
+    if pkg-config --exists "$lib" 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+get_package_manager() {
+    if check_command apt-get; then
+        echo "apt-get"
+    elif check_command dnf; then
+        echo "dnf"
+    elif check_command yum; then
+        echo "yum"
+    else
+        echo ""
+    fi
+}
+
 try_install_dependencies() {
     if [ "$INSTALL_MODE" != "system" ]; then
         return 1
     fi
     
-    local pkg_manager=""
-    local install_cmd=""
-    
-    if check_command apt-get; then
-        pkg_manager="apt-get"
-        install_cmd="apt-get install -y"
-    elif check_command yum; then
-        pkg_manager="yum"
-        install_cmd="yum install -y"
-    elif check_command dnf; then
-        pkg_manager="dnf"
-        install_cmd="dnf install -y"
-    else
+    local pkg_manager=$(get_package_manager)
+    if [ -z "$pkg_manager" ]; then
         return 1
     fi
     
     print_color "$color_yellow" "      Attempting to install missing dependencies..."
     
     local packages=""
+    
     check_command cmake || packages="$packages cmake"
-    check_command gcc || packages="$packages gcc g++"
+    check_command gcc || packages="$packages gcc"
+    check_command g++ || packages="$packages g++"
     check_command git || packages="$packages git"
-    check_command curl || packages="$packages curl"
     check_command make || packages="$packages make"
+    check_command pkg-config || packages="$packages pkg-config"
+    
+    if [ "$pkg_manager" = "apt-get" ]; then
+        check_library openssl || packages="$packages libssl-dev"
+        packages="$packages ca-certificates"
+    elif [ "$pkg_manager" = "dnf" ] || [ "$pkg_manager" = "yum" ]; then
+        check_library openssl || packages="$packages openssl-devel"
+        packages="$packages ca-certificates"
+    fi
     
     if [ -n "$packages" ]; then
         if [ "$EUID" -eq 0 ]; then
-            $install_cmd $packages
+            $pkg_manager install -y $packages
         else
-            sudo $install_cmd $packages
+            sudo $pkg_manager install -y $packages
         fi
         return 0
     fi
     
     return 0
+}
+
+show_dependency_guide() {
+    echo ""
+    print_error "Please install missing dependencies:"
+    echo ""
+    echo "      Ubuntu/Debian:"
+    echo "        sudo apt-get update"
+    echo "        sudo apt-get install -y build-essential cmake git pkg-config \\"
+    echo "                                 libssl-dev ca-certificates"
+    echo ""
+    echo "      RHEL/CentOS/AlmaLinux/Fedora:"
+    echo "        sudo dnf install -y gcc gcc-c++ cmake git make pkg-config \\"
+    echo "                            openssl-devel ca-certificates"
+    echo ""
 }
 
 check_dependencies() {
@@ -281,23 +314,30 @@ check_dependencies() {
         missing=1
     fi
     
+    if ! check_command pkg-config; then
+        print_error "pkg-config not found"
+        missing=1
+    fi
+    
+    if ! check_library openssl; then
+        print_error "OpenSSL development library not found"
+        missing=1
+    fi
+    
     if [ $missing -eq 1 ]; then
-        if ! try_install_dependencies; then
-            echo ""
-            print_error "Please install missing dependencies:"
-            echo ""
-            echo "      Ubuntu/Debian:"
-            echo "        sudo apt-get install cmake gcc g++ git make curl"
-            echo ""
-            echo "      RHEL/CentOS/AlmaLinux:"
-            echo "        sudo yum install cmake gcc gcc-c++ git make curl"
-            echo ""
+        if [ "$INSTALL_MODE" = "system" ]; then
+            if ! try_install_dependencies; then
+                show_dependency_guide
+                exit 1
+            fi
+        else
+            show_dependency_guide
             exit 1
         fi
     fi
     
     local cmake_version=$(cmake --version | head -n1 | awk '{print $3}')
-    print_success "Dependencies: cmake $cmake_version, gcc, git"
+    print_success "Dependencies: cmake $cmake_version, gcc, git, pkg-config"
 }
 
 download_source() {
