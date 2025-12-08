@@ -134,7 +134,6 @@ ExternalProject_Add(
     jemalloc_build
     URL https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_VERSION}/jemalloc-${JEMALLOC_VERSION}.tar.bz2
     URL_HASH SHA256=2db82d1e7119df3e71b7640219b6dfe84789bc0537983c3b7ac4f7189aecfeaa
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     PREFIX ${JEMALLOC_PREFIX}
     CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${JEMALLOC_INSTALL_DIR} --disable-shared --enable-static
     BUILD_COMMAND make -j4
