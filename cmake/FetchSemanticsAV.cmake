@@ -118,7 +118,6 @@ function(fetch_and_configure_semanticsav)
         semantics_av_core
         URL ${SEMANTICS_AV_URL}
         URL_HASH SHA256=${SEMANTICS_AV_HASH}
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     )
     
     FetchContent_GetProperties(semantics_av_core)
