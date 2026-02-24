@@ -358,7 +358,7 @@ ScanSummary Scanner::scanArchiveInternal(struct archive* a,
         std::string full_path = extractEntryPathname(entry, archive_path, summary.total_files_found);
         
         if (entry_size > archive_size * options.max_compression_ratio) {
-            common::Logger::instance().warn(
+            common::Logger::instance().debug(
                 "[Archive] BOMB: Ratio exceeded | path={} | ratio={}",
                 full_path, entry_size / archive_size);
             summary.compression_ratio_exceeded++;
@@ -381,7 +381,7 @@ ScanSummary Scanner::scanArchiveInternal(struct archive* a,
         if (read_size < 0) {
             const char* error_msg = archive_error_string(a);
             if (isEncryptionError(error_msg)) {
-                common::Logger::instance().warn("[Archive] Encrypted entry | path={}", 
+                common::Logger::instance().info("[Archive] Encrypted entry | path={}", 
                                                full_path);
                 common::ScanMetadata encrypted_result;
                 encrypted_result.file_path = full_path;
@@ -391,7 +391,7 @@ ScanSummary Scanner::scanArchiveInternal(struct archive* a,
                 summary.results.push_back(encrypted_result);
                 summary.encrypted_files++;
             } else {
-                common::Logger::instance().error("[Archive] Extraction failed | path={} | error={}", 
+                common::Logger::instance().debug("[Archive] Extraction failed | path={} | error={}", 
                                                 full_path, error_msg);
                 
                 common::ScanMetadata error_result;
@@ -408,7 +408,7 @@ ScanSummary Scanner::scanArchiveInternal(struct archive* a,
         }
         
         if (read_size != static_cast<ssize_t>(entry_size)) {
-            common::Logger::instance().warn("[Archive] Partial read | path={} | expected={} | read={}",
+            common::Logger::instance().debug("[Archive] Partial read | path={} | expected={} | read={}",
                                            full_path, entry_size, read_size);
             data.resize(read_size);
         }
@@ -445,7 +445,7 @@ ScanSummary Scanner::scanArchiveInternal(struct archive* a,
     if (r != ARCHIVE_OK && r != ARCHIVE_EOF && entry_count == 0) {
         const char* error_msg = archive_error_string(a);
         if (isEncryptionError(error_msg)) {
-            common::Logger::instance().warn("[Archive] Encrypted archive | path={} | error={}", 
+            common::Logger::instance().info("[Archive] Encrypted archive | path={} | error={}", 
                                            archive_path, error_msg);
             summary.encrypted_files++;
             

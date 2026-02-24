@@ -692,7 +692,7 @@ void RequestHandler::handleScanBatchFds(Connection* conn, const ScanBatchFds& ba
                 ctx.details["file"] = result.file_path;
                 ctx.details["exception"] = e.what();
                 
-                common::Logger::instance().error("[Scan] Exception | {}", common::formatContext(ctx));
+                common::Logger::instance().debug("[Scan] Exception | {}", common::formatContext(ctx));
             }
             
             size_t current = batch_start_index + files_processed.fetch_add(1) + 1;

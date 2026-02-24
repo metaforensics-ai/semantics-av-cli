@@ -143,9 +143,9 @@ common::ScanMetadata SemanticsAVEngine::scan(const std::filesystem::path& file_p
         ctx.details["path"] = file_path.string();
         metadata.error_context = ctx;
         
-        common::Logger::instance().error("[Engine] Scan failed | code={} | {}", 
-                                        CoreErrorCodeHelper::toString(CoreErrorCode::SCAN_FILE_NOT_FOUND),
-                                        common::formatContext(ctx));
+        common::Logger::instance().warn("[Engine] Scan failed | code={} | {}", 
+                                       CoreErrorCodeHelper::toString(CoreErrorCode::SCAN_FILE_NOT_FOUND),
+                                       common::formatContext(ctx));
         return metadata;
     }
     
@@ -189,7 +189,7 @@ common::ScanMetadata SemanticsAVEngine::scan(const std::filesystem::path& file_p
                 ctx.details["sdk_result"] = std::to_string(static_cast<int>(result));
                 metadata.error_context = ctx;
                 
-                common::Logger::instance().error("[Engine] Scan failed | code={} | {}", 
+                common::Logger::instance().debug("[Engine] Scan failed | code={} | {}", 
                                                 CoreErrorCodeHelper::toString(error_code),
                                                 common::formatContext(ctx));
             } else {
@@ -435,7 +435,7 @@ common::ScanMetadata SemanticsAVEngine::scan(const std::vector<uint8_t>& data, b
         ctx.details["size"] = "0";
         metadata.error_context = ctx;
         
-        common::Logger::instance().error("[Engine] Scan failed | code={} | {}", 
+        common::Logger::instance().debug("[Engine] Scan failed | code={} | {}", 
                                         CoreErrorCodeHelper::toString(CoreErrorCode::SCAN_FILE_EMPTY),
                                         common::formatContext(ctx));
         return metadata;
