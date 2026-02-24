@@ -41,7 +41,7 @@ void ScanCommand::setup(CLI::App* subcommand) {
     subcommand->add_flag("-q,--quiet", quiet_, 
                         "Quiet mode");
     subcommand->add_flag("-i,--infected", infected_only_,
-                        "Show only infected (malicious) and error files");
+                        "Show only infected (malicious) files");
     subcommand->add_flag("-n,--no-daemon", no_daemon_,
                         "Force standalone mode");
     subcommand->add_flag("-H,--include-hashes", include_hashes_,
@@ -585,8 +585,7 @@ bool ScanCommand::shouldPrintResult(const common::ScanMetadata& result) const {
         return true;
     }
     
-    return result.result == common::ScanResult::MALICIOUS || 
-           result.result == common::ScanResult::ERROR;
+    return result.result == common::ScanResult::MALICIOUS;
 }
 
 bool ScanCommand::shouldPrintFileResult(const daemon::ScanFileComplete& result) const {
@@ -598,8 +597,7 @@ bool ScanCommand::shouldPrintFileResult(const daemon::ScanFileComplete& result) 
         return true;
     }
     
-    return result.result == common::ScanResult::MALICIOUS || 
-           result.result == common::ScanResult::ERROR;
+    return result.result == common::ScanResult::MALICIOUS;
 }
 
 bool ScanCommand::shouldShowProgress() const {
