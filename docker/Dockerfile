@@ -23,6 +23,7 @@ FROM debian:12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     libcurl4 \
+    libtbb12 \
     ca-certificates \
     wget \
     && rm -rf /var/lib/apt/lists/* && \

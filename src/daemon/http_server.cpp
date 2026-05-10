@@ -238,7 +238,7 @@ void HttpApiServer::handleConvertReport(const httplib::Request& req, httplib::Re
             format::HtmlFormatter formatter;
             std::string html_content = formatter.format(*result);
             res.status = 200;
-            res.set_content(html_content, "text/html");
+            res.set_content(html_content, "text/html; charset=utf-8");
         } else if (format == "markdown") {
             format::MarkdownFormatter formatter;
             std::string markdown_content = formatter.format(*result);
@@ -384,7 +384,7 @@ void HttpApiServer::handleShowReport(const httplib::Request& req, httplib::Respo
             format::HtmlFormatter formatter;
             std::string html_content = formatter.format(*result);
             res.status = 200;
-            res.set_content(html_content, "text/html");
+            res.set_content(html_content, "text/html; charset=utf-8");
         } else if (format == "markdown") {
             format::MarkdownFormatter formatter;
             std::string markdown_content = formatter.format(*result);
