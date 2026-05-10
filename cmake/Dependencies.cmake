@@ -80,7 +80,11 @@ set(CLI11_INSTALL OFF CACHE BOOL "" FORCE)
 
 set(toml11_INSTALL OFF CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(cli11 spdlog httplib toml11 tbb)
+set(BUILD_SHARED_LIBS OFF)
+FetchContent_MakeAvailable(cli11 spdlog httplib toml11)
+
+FetchContent_MakeAvailable(tbb)
+set(BUILD_SHARED_LIBS OFF)
 
 set(JSON_Install OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(json)
