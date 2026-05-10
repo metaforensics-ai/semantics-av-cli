@@ -53,6 +53,10 @@ namespace network {
     constexpr int DEFAULT_TIMEOUT_SECONDS = 120;
 }
 
+namespace model {
+    constexpr const char* API_VERSION = "v1";
+}
+
 namespace system {
     constexpr const char* DAEMON_USER = "semantics-av-daemon";
     constexpr const char* DAEMON_GROUP = "semantics-av-daemon";

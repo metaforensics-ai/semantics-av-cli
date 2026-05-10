@@ -1,4 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
+
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 project(semantics-av VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 20)

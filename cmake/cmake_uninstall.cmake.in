@@ -1,33 +1,68 @@
 message(STATUS "Uninstalling SemanticsAV...")
 
-execute_process(COMMAND systemctl stop semantics-av OUTPUT_QUIET ERROR_QUIET)
+execute_process(COMMAND id -u OUTPUT_VARIABLE CURRENT_UID OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+if(CURRENT_UID STREQUAL "0")
+    execute_process(COMMAND systemctl stop semantics-av OUTPUT_QUIET ERROR_QUIET)
+    execute_process(COMMAND systemctl disable semantics-av OUTPUT_QUIET ERROR_QUIET)
+    execute_process(COMMAND systemctl daemon-reload OUTPUT_QUIET ERROR_QUIET)
+endif()
+
 execute_process(COMMAND systemctl --user stop semantics-av OUTPUT_QUIET ERROR_QUIET)
-execute_process(COMMAND systemctl disable semantics-av OUTPUT_QUIET ERROR_QUIET)
 execute_process(COMMAND systemctl --user disable semantics-av OUTPUT_QUIET ERROR_QUIET)
-execute_process(COMMAND systemctl daemon-reload OUTPUT_QUIET ERROR_QUIET)
 execute_process(COMMAND systemctl --user daemon-reload OUTPUT_QUIET ERROR_QUIET)
+
+set(SAFE_PREFIXES
+    "@CMAKE_INSTALL_PREFIX@/bin/semantics-av"
+    "@CMAKE_INSTALL_PREFIX@/lib/libsemanticsav"
+    "@CMAKE_INSTALL_PREFIX@/share/semantics-av"
+    "@CMAKE_INSTALL_PREFIX@/share/systemd"
+    "@CMAKE_INSTALL_PREFIX@/etc/semantics-av"
+    "/etc/semantics-av"
+    "/etc/systemd/system/semantics-av"
+    "/var/lib/semantics-av"
+    "/var/log/semantics-av"
+    "/var/run/semantics-av"
+)
+
+function(is_safe_to_remove filepath result_var)
+    set(${result_var} FALSE PARENT_SCOPE)
+    foreach(prefix ${SAFE_PREFIXES})
+        string(FIND "${filepath}" "${prefix}" pos)
+        if(pos EQUAL 0 OR pos GREATER -1)
+            set(${result_var} TRUE PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+endfunction()
 
 if(EXISTS "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
     file(READ "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt" files)
     string(REGEX REPLACE "\n" ";" files "${files}")
     foreach(file ${files})
         if(EXISTS "$ENV{DESTDIR}${file}")
-            message(STATUS "Removing ${file}")
-            file(REMOVE "$ENV{DESTDIR}${file}")
+            is_safe_to_remove("${file}" safe)
+            if(safe)
+                message(STATUS "Removing ${file}")
+                file(REMOVE "$ENV{DESTDIR}${file}")
+            else()
+                message(STATUS "Skipping (not owned by SemanticsAV): ${file}")
+            endif()
         endif()
     endforeach()
 endif()
 
-set(ADDITIONAL_FILES
-    "/etc/systemd/system/semantics-av.service"
-)
-
-foreach(file ${ADDITIONAL_FILES})
-    if(EXISTS ${file})
-        message(STATUS "Removing ${file}")
-        file(REMOVE ${file})
-    endif()
-endforeach()
+if(CURRENT_UID STREQUAL "0")
+    set(ADDITIONAL_FILES
+        "/etc/systemd/system/semantics-av.service"
+    )
+    foreach(file ${ADDITIONAL_FILES})
+        if(EXISTS ${file})
+            message(STATUS "Removing ${file}")
+            file(REMOVE ${file})
+        endif()
+    endforeach()
+endif()
 
 message(STATUS "")
 message(STATUS "Files removed. System directories preserved for safety.")

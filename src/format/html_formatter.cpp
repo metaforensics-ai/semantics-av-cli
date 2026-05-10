@@ -278,7 +278,7 @@ nlohmann::json HtmlFormatter::prepareTemplateData(const network::AnalysisResult&
     
     std::string target_header_text;
     if (target_confirmed) {
-        target_header_text = data["target_label_upper"].get<std::string>() + "†";
+        target_header_text = data["target_label_upper"].get<std::string>() + "&dagger;";
     } else {
         target_header_text = data["target_label_upper"].get<std::string>() + "* " + 
                             data["confidence_percent"].get<std::string>() + "%";
@@ -1555,7 +1555,7 @@ const char* HtmlFormatter::getHtmlTemplate() const {
             <div class="legend">
                 <div class="legend-title">Legend:</div>
                 {% if show_confirmed_legend %}
-                <div>† = Confirmed label (verified malicious/clean from intelligence)</div>
+                <div>&dagger; = Confirmed label (verified malicious/clean from intelligence)</div>
                 {% endif %}
                 {% if show_predicted_legend %}
                 <div>* = Predicted label (suspicious/unknown or not in intelligence database)</div>

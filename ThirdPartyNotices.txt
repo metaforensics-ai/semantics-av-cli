@@ -99,7 +99,7 @@ detection capabilities.
    Description: Cryptography and SSL/TLS library
    License File: licenses/openssl/LICENSE.txt
 
-2. LIEF (Library to Instrument Executable Formats) - 0.16.7
+2. LIEF (Library to Instrument Executable Formats) - 0.17.6
    Copyright: Copyright 2017 Romain Thomas, Copyright 2017 Quarkslab
    License: Apache License 2.0
    Source: https://github.com/lief-project/LIEF
@@ -120,12 +120,11 @@ detection capabilities.
    Description: JSON parser and serializer for C++
    License File: licenses/nlohmann-json/LICENSE.MIT
 
-5. ONNX Runtime - 1.23.0
-   Copyright: Copyright (c) Microsoft Corporation
+5. yaml-cpp - 0.8.0
+   Copyright: Copyright (c) 2008-2024 Jesse Beder
    License: MIT License
-   Source: https://github.com/microsoft/onnxruntime
-   Description: Cross-platform ML inferencing and training accelerator
-   License File: licenses/onnxruntime/LICENSE
-   Third-Party Notices: licenses/onnxruntime/ThirdPartyNotices.txt
+   Source: https://github.com/jbeder/yaml-cpp
+   Description: YAML parser and emitter for C++
+   License File: licenses/yaml-cpp/LICENSE
 
 ================================================================================================

@@ -12,6 +12,10 @@
 namespace semantics_av {
 namespace network {
 
+static std::string buildModelUriPath(const std::string& model_type) {
+    return std::string("/model-distribution/") + model_type + "/model/" + constants::model::API_VERSION + "/latest";
+}
+
 class ModelDownloader::Impl {
 public:
     Impl(int timeout_seconds)
@@ -105,7 +109,7 @@ public:
             try {
                 std::lock_guard<std::mutex> lock(mutex_);
                 
-                std::string uri_path = "/model-distribution/" + model_type + "/latest";
+                std::string uri_path = buildModelUriPath(model_type);
                 
                 httplib::Headers headers = {
                     {"User-Agent", "SemanticsAV-CLI/1.0"}
@@ -224,7 +228,7 @@ public:
             try {
                 std::lock_guard<std::mutex> lock(mutex_);
                 
-                std::string uri_path = "/model-distribution/" + model_type + "/latest";
+                std::string uri_path = buildModelUriPath(model_type);
                 
                 httplib::Headers headers = {
                     {"User-Agent", "SemanticsAV-CLI/1.0"}
@@ -482,7 +486,7 @@ void ModelDownloader::setProgressCallback(DownloadProgressCallback callback) {
 }
 
 std::string ModelDownloader::buildModelUrl(const std::string& model_type) const {
-    return std::string(constants::network::DEFAULT_CDN_URL) + "/model-distribution/" + model_type + "/latest";
+    return std::string(constants::network::DEFAULT_CDN_URL) + buildModelUriPath(model_type);
 }
 
 bool ModelDownloader::validateModelSignature(const std::vector<uint8_t>& data, 

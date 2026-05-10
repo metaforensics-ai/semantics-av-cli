@@ -15,12 +15,8 @@ function(detect_platform platform_var filename_var)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
             set(platform "linux-x64")
-            # x86_64: Built on CentOS 7 baseline (glibc 2.17, libstdc++ 3.4.19)
-            # Compatible with: RHEL/CentOS 7+, Ubuntu 16.04+, Debian 9+
         elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
             set(platform "linux-arm64")
-            # ARM64: Built on Ubuntu 18.04 baseline (glibc 2.27, libstdc++ 3.4.22)
-            # Compatible with: RHEL/AlmaLinux 8+, Ubuntu 18.04+, Debian 10+
         else()
             message(FATAL_ERROR "Unsupported Linux architecture: ${CMAKE_SYSTEM_PROCESSOR}\n"
                                 "SemanticsAV SDK supports:\n"
@@ -103,6 +99,27 @@ endif()
     message(STATUS "Package config files created at: ${CONFIG_INSTALL_DIR}")
 endfunction()
 
+function(invalidate_stale_cache version remote_hash)
+    set(STAMP_FILE "${CMAKE_BINARY_DIR}/_deps/.semanticsav_stamp")
+    set(current_stamp "${version}:${remote_hash}")
+    
+    if(EXISTS "${STAMP_FILE}")
+        file(READ "${STAMP_FILE}" cached_stamp)
+        string(STRIP "${cached_stamp}" cached_stamp)
+        
+        if(NOT "${cached_stamp}" STREQUAL "${current_stamp}")
+            message(STATUS "SemanticsAV library changed (${cached_stamp} -> ${current_stamp}), clearing cache")
+            
+            file(REMOVE_RECURSE "${CMAKE_BINARY_DIR}/_deps/semantics_av_core-src")
+            file(REMOVE_RECURSE "${CMAKE_BINARY_DIR}/_deps/semantics_av_core-subbuild")
+            
+            unset(SEMANTICS_AV_LIBRARY CACHE)
+        endif()
+    endif()
+    
+    file(WRITE "${STAMP_FILE}" "${current_stamp}")
+endfunction()
+
 function(fetch_and_configure_semanticsav)
     read_version_number(SEMANTICS_AV_VERSION)
     detect_platform(SEMANTICS_AV_PLATFORM SEMANTICS_AV_FILENAME)
@@ -111,6 +128,8 @@ function(fetch_and_configure_semanticsav)
     set(SEMANTICS_AV_URL "${SEMANTICS_AV_BASE_URL}/${SEMANTICS_AV_FILENAME}")
     
     download_and_verify_hash("${SEMANTICS_AV_URL}" "${SEMANTICS_AV_FILENAME}" SEMANTICS_AV_HASH)
+    
+    invalidate_stale_cache("${SEMANTICS_AV_VERSION}" "${SEMANTICS_AV_HASH}")
     
     message(STATUS "Fetching SemanticsAV v${SEMANTICS_AV_VERSION} for ${SEMANTICS_AV_PLATFORM}")
     
@@ -131,6 +150,8 @@ function(fetch_and_configure_semanticsav)
         if(NOT EXISTS ${SEMANTICS_AV_INCLUDE_DIR}/semantics_av/semantics_av.hpp)
             message(FATAL_ERROR "SemanticsAV headers not found in downloaded package")
         endif()
+        
+        unset(SEMANTICS_AV_LIBRARY CACHE)
         
         find_library(SEMANTICS_AV_LIBRARY
             NAMES semantics_av libsemantics_av

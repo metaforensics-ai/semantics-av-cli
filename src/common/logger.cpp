@@ -172,9 +172,6 @@ void Logger::handleLibraryLog(semantics_av::LogLevel level, const std::string& m
         case semantics_av::LogLevel::INFO:
             logger_->info(formatted_message);
             break;
-        case semantics_av::LogLevel::DEBUG:
-            logger_->debug(formatted_message);
-            break;
     }
 }
 
